@@ -394,34 +394,27 @@ export default function Workspace() {
     }
   }
 
-  async function addToWatchlist() {
-    const ticker = tickerInput.trim().toUpperCase();
+async function addToWatchlist(tickerToAdd) {
+  const ticker = tickerToAdd?.trim().toUpperCase();
 
-    if (!ticker) return;
+  if (!ticker) return;
 
-    setError('');
-    setMessage('');
+  setError('');
+  setMessage('');
 
-    try {
-      await apiRequest('/watchlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ticker }),
-      }, token);
+  try {
+    await apiRequest('/watchlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker }),
+    }, token);
 
-      setTickerInput('');
-
-      await fetchWatchlist();
-
-      setMessage(`${ticker} added to your watchlist.`);
-
-    } catch (err) {
-      setError(err.message);
-    }
+    await fetchWatchlist();
+    setMessage(`${ticker} added to your watchlist.`);
+  } catch (err) {
+    setError(err.message);
   }
-
+}
   async function removeFromWatchlist(ticker) {
     setError('');
 
@@ -903,6 +896,9 @@ export default function Workspace() {
   ];
 
   const historicalData = searchResult?.historical_data || [];
+  const isCurrentStockSaved = searchResult
+  ? watchlist.some(stock => stock.ticker === searchResult.ticker)
+  : false;
 
   return (
     <div style={{
@@ -1170,13 +1166,7 @@ export default function Workspace() {
                   {loading ? 'SEARCHING' : 'SEARCH STOCK'}
                 </button>
 
-                <button
-                  onClick={addToWatchlist}
-                  title="Add to watchlist"
-                  style={addButton}
-                >
-                  <Plus size={18} />
-                </button>
+
 
               </div>
             </section>
@@ -1366,6 +1356,33 @@ export default function Workspace() {
                 <p style={tableFootnote}>
                   Showing up to 50 historical records returned by the backend.
                 </p>
+
+                <div style={{
+  display: 'flex',
+  justifyContent: 'flex-end',
+  marginTop: '20px',
+}}>
+  <button
+    type="button"
+    onClick={() => addToWatchlist(searchResult.ticker)}
+    disabled={isCurrentStockSaved}
+    style={{
+      background: isCurrentStockSaved ? '#e5e7eb' : '#172554',
+      color: isCurrentStockSaved ? '#6b7280' : '#ffffff',
+      border: 'none',
+      borderRadius: '10px',
+      padding: '12px 20px',
+      fontWeight: 700,
+      fontSize: '13px',
+      cursor: isCurrentStockSaved ? 'not-allowed' : 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '9px',
+    }}
+  >
+    {isCurrentStockSaved ? '✓ Already in Watchlist' : '+ Add to Watchlist'}
+  </button>
+</div>
 
               </section>
             )}

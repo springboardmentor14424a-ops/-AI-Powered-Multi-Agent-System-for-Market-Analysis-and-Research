@@ -331,8 +331,10 @@ def update_preferences(
         db.refresh(preferences)
 
         return {
-            "message": "Preferences updated successfully."
-        }
+    "message": "Preferences updated successfully.",
+    "preferred_market": preferences.preferred_market,
+    "default_period": preferences.default_period
+}
 
     except SQLAlchemyError:
         db.rollback()
@@ -586,21 +588,34 @@ def search_stock(
             )
 
         # Select the most recent 50 records.
-        history = history.tail(50)
 
-        formatted_history = []
+        # Format historical records for the frontend.
+        def format_history(dataframe):
+            formatted = []
 
-        for date, row in history.iterrows():
-            formatted_history.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "open": round(float(row["Open"]), 2),
-                "high": round(float(row["High"]), 2),
-                "low": round(float(row["Low"]), 2),
-                "close": round(float(row["Close"]), 2),
-                "volume": int(row["Volume"])
-            })
+            for date, row in dataframe.iterrows():
+                formatted.append({
+                    "date": date.strftime("%Y-%m-%d"),
+                    "open": round(float(row["Open"]), 2),
+                    "high": round(float(row["High"]), 2),
+                    "low": round(float(row["Low"]), 2),
+                    "close": round(float(row["Close"]), 2),
+                    "volume": int(row["Volume"])
+                })
 
-        # Company information is supplementary.
+            return formatted
+
+        chart_data = format_history(history)
+        formatted_history = format_history(history.tail(50))
+
+        summary = {
+            "first_date": history.index[0].strftime("%Y-%m-%d"),
+            "latest_date": history.index[-1].strftime("%Y-%m-%d"),
+            "total_records": len(history)
+        }
+
+
+# Company information is supplementary.
         # A failure here should not invalidate valid price data.
         company_name = yahoo_ticker
 
@@ -624,14 +639,18 @@ def search_stock(
             completed=True
         )
 
+
         return {
-            "task_id": task.task_id,
-            "ticker": yahoo_ticker,
-            "company_name": company_name,
-            "market": market,
-            "period": period,
-            "historical_data": formatted_history
+    "task_id": task.task_id,
+    "ticker": yahoo_ticker,
+    "company_name": company_name,
+    "market": market,
+    "period": period,
+    "summary": summary,
+    "chart_data": chart_data,
+    "historical_data": formatted_history
         }
+
 
     except HTTPException:
         # Preserve intentional HTTP errors such as 422 and 502.
