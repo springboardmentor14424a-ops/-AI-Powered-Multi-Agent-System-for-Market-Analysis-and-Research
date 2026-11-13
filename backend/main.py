@@ -96,9 +96,10 @@ ALLOWED_PERIODS = {
 TICKER_PATTERN = re.compile(r"^[A-Za-z0-9.^=_-]{1,20}$")
 
 
-def get_or_create_preferences(db: Session, user_id: int):
-    """Retrieve a user's preferences or create default preferences."""
-
+def get_or_create_preferences(
+    db: Session,
+    user_id: int
+):
     preferences = (
         db.query(models.UserPreference)
         .filter(models.UserPreference.user_id == user_id)
@@ -112,7 +113,6 @@ def get_or_create_preferences(db: Session, user_id: int):
         db.refresh(preferences)
 
     return preferences
-
 
 def normalize_ticker(ticker: str, market: str) -> str:
     """
@@ -364,14 +364,363 @@ def get_research_history(
 # WATCHLIST
 # ---------------------------------------------------------
 
+@app.get(
+    "/api/watchlists",
+    response_model=list[schemas.WatchlistResponse]
+)
+def get_all_watchlists(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    return (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.user_id == current_user.user_id
+        )
+        .order_by(models.Watchlist.created_at.asc())
+        .all()
+    )
+
+
+@app.post(
+    "/api/watchlists",
+    response_model=schemas.WatchlistResponse,
+    status_code=status.HTTP_201_CREATED
+)
+def create_watchlist(
+    watchlist_data: schemas.WatchlistCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    name = watchlist_data.name.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Watchlist name cannot be empty."
+        )
+
+    existing_watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.user_id == current_user.user_id,
+            models.Watchlist.name == name
+        )
+        .first()
+    )
+
+    if existing_watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A watchlist with this name already exists."
+        )
+
+    new_watchlist = models.Watchlist(
+        user_id=current_user.user_id,
+        name=name
+    )
+
+    try:
+        db.add(new_watchlist)
+        db.commit()
+        db.refresh(new_watchlist)
+
+        return new_watchlist
+
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Failed to create watchlist.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to create watchlist."
+        )
+
+@app.get(
+    "/api/watchlists/{watchlist_id}/stocks",
+    response_model=list[schemas.SavedStockResponse]
+)
+def get_watchlist_stocks(
+    watchlist_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.watchlist_id == watchlist_id,
+            models.Watchlist.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Watchlist not found."
+        )
+
+    return (
+        db.query(models.SavedStock)
+        .filter(
+            models.SavedStock.watchlist_id == watchlist_id
+        )
+        .order_by(models.SavedStock.ticker.asc())
+        .all()
+    )
+
+@app.post(
+    "/api/watchlists/{watchlist_id}/stocks",
+    status_code=status.HTTP_201_CREATED
+)
+def add_stock_to_named_watchlist(
+    watchlist_id: int,
+    stock: schemas.WatchlistAdd,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.watchlist_id == watchlist_id,
+            models.Watchlist.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Watchlist not found."
+        )
+
+    ticker = stock.ticker.strip().upper()
+
+    if not ticker or not TICKER_PATTERN.fullmatch(ticker):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please enter a valid stock ticker."
+        )
+
+    new_stock = models.SavedStock(
+        watchlist_id=watchlist_id,
+        ticker=ticker
+    )
+
+    try:
+        db.add(new_stock)
+        db.commit()
+
+        return {
+            "message": f"{ticker} added to '{watchlist.name}' successfully."
+        }
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This stock is already in this watchlist."
+        )
+
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Failed to add stock to named watchlist.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to add stock to watchlist."
+        )
+
+
+@app.delete("/api/watchlists/{watchlist_id}/stocks/{ticker}")
+def remove_stock_from_named_watchlist(
+    watchlist_id: int,
+    ticker: str,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.watchlist_id == watchlist_id,
+            models.Watchlist.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Watchlist not found."
+        )
+
+    ticker = ticker.strip().upper()
+
+    stock_item = (
+        db.query(models.SavedStock)
+        .filter(
+            models.SavedStock.watchlist_id == watchlist_id,
+            models.SavedStock.ticker == ticker
+        )
+        .first()
+    )
+
+    if not stock_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stock not found in this watchlist."
+        )
+
+    try:
+        db.delete(stock_item)
+        db.commit()
+
+        return {
+            "message": f"{ticker} removed from '{watchlist.name}' successfully."
+        }
+
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Failed to remove stock from named watchlist.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to remove stock from watchlist."
+        )
+
+@app.put(
+    "/api/watchlists/{watchlist_id}",
+    response_model=schemas.WatchlistResponse
+)
+def rename_watchlist(
+    watchlist_id: int,
+    watchlist_data: schemas.WatchlistCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.watchlist_id == watchlist_id,
+            models.Watchlist.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Watchlist not found."
+        )
+
+    if watchlist.name == "My Watchlist":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The default watchlist cannot be renamed."
+        )
+
+    name = watchlist_data.name.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Watchlist name cannot be empty."
+        )
+
+    duplicate = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.user_id == current_user.user_id,
+            models.Watchlist.name == name,
+            models.Watchlist.watchlist_id != watchlist_id
+        )
+        .first()
+    )
+
+    if duplicate:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A watchlist with this name already exists."
+        )
+
+    try:
+        watchlist.name = name
+        db.commit()
+        db.refresh(watchlist)
+        return watchlist
+
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Failed to rename watchlist.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to rename watchlist."
+        )
+
+
+@app.delete("/api/watchlists/{watchlist_id}")
+def delete_watchlist(
+    watchlist_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.watchlist_id == watchlist_id,
+            models.Watchlist.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Watchlist not found."
+        )
+
+    if watchlist.name == "My Watchlist":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The default watchlist cannot be deleted."
+        )
+
+    try:
+        db.delete(watchlist)
+        db.commit()
+
+        return {
+            "message": "Watchlist deleted successfully."
+        }
+
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Failed to delete watchlist.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to delete watchlist."
+        )
+
 @app.get("/api/watchlist")
 def get_watchlist(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
+    default_watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.user_id == current_user.user_id,
+            models.Watchlist.name == "My Watchlist"
+        )
+        .first()
+    )
+
+    if not default_watchlist:
+        return []
+
     return (
         db.query(models.SavedStock)
-        .filter(models.SavedStock.user_id == current_user.user_id)
+        .filter(
+            models.SavedStock.watchlist_id
+            == default_watchlist.watchlist_id
+        )
         .order_by(models.SavedStock.ticker.asc())
         .all()
     )
@@ -394,10 +743,26 @@ def add_to_watchlist(
             detail="Please enter a valid stock ticker."
         )
 
+    default_watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.user_id == current_user.user_id,
+            models.Watchlist.name == "My Watchlist"
+        )
+        .first()
+    )
+
+    if not default_watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Default watchlist not found."
+        )
+
     duplicate = (
         db.query(models.SavedStock)
         .filter(
-            models.SavedStock.user_id == current_user.user_id,
+            models.SavedStock.watchlist_id
+            == default_watchlist.watchlist_id,
             models.SavedStock.ticker == ticker
         )
         .first()
@@ -410,7 +775,7 @@ def add_to_watchlist(
         )
 
     new_stock = models.SavedStock(
-        user_id=current_user.user_id,
+        watchlist_id=default_watchlist.watchlist_id,
         ticker=ticker
     )
 
@@ -438,7 +803,6 @@ def add_to_watchlist(
             detail="Unable to update your watchlist."
         )
 
-
 @app.delete("/api/watchlist/{ticker}")
 def remove_from_watchlist(
     ticker: str,
@@ -447,10 +811,26 @@ def remove_from_watchlist(
 ):
     ticker = ticker.strip().upper()
 
+    default_watchlist = (
+        db.query(models.Watchlist)
+        .filter(
+            models.Watchlist.user_id == current_user.user_id,
+            models.Watchlist.name == "My Watchlist"
+        )
+        .first()
+    )
+
+    if not default_watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Default watchlist not found."
+        )
+
     stock_item = (
         db.query(models.SavedStock)
         .filter(
-            models.SavedStock.user_id == current_user.user_id,
+            models.SavedStock.watchlist_id
+            == default_watchlist.watchlist_id,
             models.SavedStock.ticker == ticker
         )
         .first()
@@ -478,7 +858,6 @@ def remove_from_watchlist(
             detail="Unable to update your watchlist."
         )
 
-
 # ---------------------------------------------------------
 # MARKET DATA / STOCK SEARCH
 # ---------------------------------------------------------
@@ -497,7 +876,7 @@ def search_stock(
     Returns:
     - Research task ID
     - Ticker and company name
-    - Historical OHLCV data (latest 50 records)
+    - Historical OHLCV data (all available records)
     """
 
     market = market.strip().upper()
@@ -606,7 +985,7 @@ def search_stock(
             return formatted
 
         chart_data = format_history(history)
-        formatted_history = format_history(history.tail(50))
+        formatted_history = chart_data
 
         summary = {
             "first_date": history.index[0].strftime("%Y-%m-%d"),

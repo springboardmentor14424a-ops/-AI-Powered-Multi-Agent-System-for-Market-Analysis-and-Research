@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import StockChart from './StockChart';
 import {
   Search, Plus, Trash2, History, Settings, TrendingUp,
   LogOut, Loader2, Sparkles, BarChart3, Globe, Clock,
@@ -210,12 +211,21 @@ export default function Workspace() {
 
   const [tickerInput, setTickerInput] = useState('');
   const [searchResult, setSearchResult] = useState(null);
+  // HISTORICAL DATA PAGINATION
 
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const recordsPerPage = 50;
   // USER DATA
 
-  const [watchlist, setWatchlist] = useState([]);
-  const [history, setHistory] = useState([]);
+// USER DATA
 
+const [watchlist, setWatchlist] = useState([]);
+const [watchlists, setWatchlists] = useState([]);
+const [selectedWatchlistId, setSelectedWatchlistId] = useState(null);
+const [newWatchlistName, setNewWatchlistName] = useState('');
+
+const [history, setHistory] = useState([]);
   const [preferences, setPreferences] = useState(
     DEFAULT_PREFERENCES
   );
@@ -330,109 +340,184 @@ export default function Workspace() {
   // ====================================================
 
   useEffect(() => {
-    if (!token) return;
+  if (!token) return;
 
-    async function loadWorkspace() {
-      try {
-        const [
-          watchlistData,
-          historyData,
-          preferenceData,
-        ] = await Promise.all([
-          apiRequest('/watchlist', {}, token),
-          apiRequest('/workspace/history', {}, token),
-          apiRequest('/workspace/preferences', {}, token),
-        ]);
+  async function loadWorkspace() {
+    try {
+      const [
+        watchlistsData,
+        historyData,
+        preferenceData,
+      ] = await Promise.all([
+        apiRequest('/watchlists', {}, token),
+        apiRequest('/workspace/history', {}, token),
+        apiRequest('/workspace/preferences', {}, token),
+      ]);
+
+      const lists = Array.isArray(watchlistsData)
+        ? watchlistsData
+        : watchlistsData.items || [];
+
+      setWatchlists(lists);
+
+      const defaultList =
+        lists.find(list => list.name === 'My Watchlist') ||
+        lists[0];
+
+      if (defaultList) {
+        setSelectedWatchlistId(defaultList.watchlist_id);
+
+        const stocksData = await apiRequest(
+          `/watchlists/${defaultList.watchlist_id}/stocks`,
+          {},
+          token
+        );
 
         setWatchlist(
-          Array.isArray(watchlistData)
-            ? watchlistData
-            : watchlistData.items || []
+          Array.isArray(stocksData)
+            ? stocksData
+            : stocksData.items || []
         );
-
-        setHistory(
-          Array.isArray(historyData)
-            ? historyData
-            : historyData.items || []
-        );
-
-        setPreferences({
-          ...DEFAULT_PREFERENCES,
-          ...preferenceData,
-        });
-
-      } catch (err) {
-        console.error('Workspace loading error:', err);
-
-        setError(
-          `Could not load workspace data: ${err.message}`
-        );
+      } else {
+        setSelectedWatchlistId(null);
+        setWatchlist([]);
       }
+
+      setHistory(
+        Array.isArray(historyData)
+          ? historyData
+          : historyData.items || []
+      );
+
+      setPreferences({
+        ...DEFAULT_PREFERENCES,
+        ...preferenceData,
+      });
+
+    } catch (err) {
+      console.error('Workspace loading error:', err);
+      setError(`Could not load workspace data: ${err.message}`);
     }
+  }
 
-    loadWorkspace();
-  }, [token]);
-
+  loadWorkspace();
+}, [token]);
   // ====================================================
   // WATCHLIST
   // ====================================================
 
-  async function fetchWatchlist() {
-    try {
-      const data = await apiRequest(
-        '/watchlist',
-        {},
-        token
-      );
-
-      setWatchlist(
-        Array.isArray(data) ? data : data.items || []
-      );
-
-    } catch (err) {
-      setError(err.message);
-    }
+ async function fetchWatchlist(watchlistId = selectedWatchlistId) {
+  if (!watchlistId) {
+    setWatchlist([]);
+    return;
   }
+
+  try {
+    const data = await apiRequest(
+      `/watchlists/${watchlistId}/stocks`,
+      {},
+      token
+    );
+
+    setWatchlist(
+      Array.isArray(data) ? data : data.items || []
+    );
+  } catch (err) {
+    setError(err.message);
+  }
+}
 
 async function addToWatchlist(tickerToAdd) {
   const ticker = tickerToAdd?.trim().toUpperCase();
 
-  if (!ticker) return;
+  if (!ticker || !selectedWatchlistId) return;
 
   setError('');
   setMessage('');
 
   try {
-    await apiRequest('/watchlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticker }),
-    }, token);
+    await apiRequest(
+      `/watchlists/${selectedWatchlistId}/stocks`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker }),
+      },
+      token
+    );
 
-    await fetchWatchlist();
+    await fetchWatchlist(selectedWatchlistId);
     setMessage(`${ticker} added to your watchlist.`);
   } catch (err) {
     setError(err.message);
   }
 }
-  async function removeFromWatchlist(ticker) {
-    setError('');
 
-    try {
-      await apiRequest(
-        `/watchlist/${encodeURIComponent(ticker)}`,
-        { method: 'DELETE' },
-        token
-      );
+async function removeFromWatchlist(ticker) {
+  if (!selectedWatchlistId) return;
 
-      await fetchWatchlist();
+  setError('');
 
-      setMessage(`${ticker} removed from your watchlist.`);
+  try {
+    await apiRequest(
+      `/watchlists/${selectedWatchlistId}/stocks/${encodeURIComponent(ticker)}`,
+      { method: 'DELETE' },
+      token
+    );
 
-    } catch (err) {
-      setError(err.message);
-    }
+    await fetchWatchlist(selectedWatchlistId);
+    setMessage(`${ticker} removed from your watchlist.`);
+  } catch (err) {
+    setError(err.message);
   }
+}
+
+
+async function handleSelectWatchlist(watchlistId) {
+  const id = Number(watchlistId);
+
+  setSelectedWatchlistId(id);
+  await fetchWatchlist(id);
+}
+
+async function createWatchlist() {
+  const name = newWatchlistName.trim();
+
+  if (!name) {
+    setError('Please enter a watchlist name.');
+    return;
+  }
+
+  setError('');
+  setMessage('');
+
+  try {
+    await apiRequest('/watchlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }, token);
+
+    const data = await apiRequest('/watchlists', {}, token);
+    const lists = Array.isArray(data) ? data : data.items || [];
+
+    setWatchlists(lists);
+
+    const createdList = lists.find(list => list.name === name);
+
+    if (createdList) {
+      setSelectedWatchlistId(createdList.watchlist_id);
+      await fetchWatchlist(createdList.watchlist_id);
+    }
+
+    setNewWatchlistName('');
+    setMessage(`"${name}" watchlist created successfully.`);
+  } catch (err) {
+    setError(err.message);
+  }
+}
+
+
 
   // ====================================================
   // RESEARCH HISTORY
@@ -471,7 +556,7 @@ async function addToWatchlist(tickerToAdd) {
     setError('');
     setMessage('');
     setSearchResult(null);
-
+    setCurrentPage(1);
     try {
       const params = new URLSearchParams({
         ticker,
@@ -896,6 +981,22 @@ async function addToWatchlist(tickerToAdd) {
   ];
 
   const historicalData = searchResult?.historical_data || [];
+  const sortedHistoricalData = [...historicalData].reverse();
+
+const totalPages = Math.ceil(
+  sortedHistoricalData.length / recordsPerPage
+);
+
+const startIndex = (currentPage - 1) * recordsPerPage;
+const endIndex = Math.min(
+  startIndex + recordsPerPage,
+  sortedHistoricalData.length
+);
+
+const currentRecords = sortedHistoricalData.slice(
+  startIndex,
+  endIndex
+);
   const isCurrentStockSaved = searchResult
   ? watchlist.some(stock => stock.ticker === searchResult.ticker)
   : false;
@@ -1191,6 +1292,63 @@ async function addToWatchlist(tickerToAdd) {
 
               </div>
 
+
+              <div style={{
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+  marginBottom: '18px',
+}}>
+  <select
+    value={selectedWatchlistId || ''}
+    onChange={e => handleSelectWatchlist(e.target.value)}
+    style={{
+      flex: '1',
+      minWidth: '150px',
+      padding: '10px',
+      borderRadius: '8px',
+      border: `1px solid ${colors.border}`,
+      background: colors.background,
+      color: colors.text,
+    }}
+  >
+    {watchlists.map(list => (
+      <option
+        key={list.watchlist_id}
+        value={list.watchlist_id}
+      >
+        {list.name}
+      </option>
+    ))}
+  </select>
+
+  <input
+    type="text"
+    placeholder="New watchlist name"
+    value={newWatchlistName}
+    onChange={e => setNewWatchlistName(e.target.value)}
+    onKeyDown={e => {
+      if (e.key === 'Enter') createWatchlist();
+    }}
+    style={{
+      flex: '1',
+      minWidth: '150px',
+      padding: '10px',
+      borderRadius: '8px',
+      border: `1px solid ${colors.border}`,
+      background: colors.background,
+      color: colors.text,
+    }}
+  />
+
+  <button
+    onClick={createWatchlist}
+    style={searchButton}
+  >
+    + Create
+  </button>
+</div>
+
               {watchlist.length === 0 ? (
                 <EmptyState
                   title="Your watchlist is empty"
@@ -1286,6 +1444,30 @@ async function addToWatchlist(tickerToAdd) {
 
                 </div>
 
+
+{/* STOCK PRICE AND VOLUME CHART */}
+
+{historicalData.length > 0 && (
+  <div style={{ marginBottom: '28px' }}>
+
+    <div style={sectionHeading}>
+      <TrendingUp size={18} color={colors.primary} />
+
+      <h2 style={sectionTitle}>
+        Price & Volume Analysis
+      </h2>
+    </div>
+
+    <p style={sectionDescription}>
+      Historical stock price movements and trading volume.
+    </p>
+
+    <StockChart data={historicalData} />
+
+  </div>
+)}
+
+
                 {historicalData.length === 0 ? (
                   <EmptyState
                     title="No historical records"
@@ -1314,7 +1496,7 @@ async function addToWatchlist(tickerToAdd) {
                       </thead>
 
                       <tbody>
-                        {historicalData.slice(0, 50).map((row, index) => (
+                        {currentRecords.map((row, index) => (
                           <tr key={row.date || index}>
                             <td style={tableCellStyle}>
                               {formatDate(row.date)}
@@ -1354,8 +1536,38 @@ async function addToWatchlist(tickerToAdd) {
                 )}
 
                 <p style={tableFootnote}>
-                  Showing up to 50 historical records returned by the backend.
+                  Showing {startIndex + 1}–{endIndex} of {historicalData.length} records
                 </p>
+
+                <div style={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginTop: '16px',
+}}>
+  <button
+    style={styles.secondaryButton}
+    disabled={currentPage === 1}
+    onClick={() => setCurrentPage(currentPage - 1)}
+  >
+    Previous
+  </button>
+
+  <span style={{ color: '#64748B', fontSize: '13px' }}>
+    Page {currentPage} of {totalPages}
+  </span>
+
+  <button
+    style={styles.secondaryButton}
+    disabled={currentPage >= totalPages}
+    onClick={() => setCurrentPage(currentPage + 1)}
+  >
+    Next
+  </button>
+</div>
+
+
+
 
                 <div style={{
   display: 'flex',

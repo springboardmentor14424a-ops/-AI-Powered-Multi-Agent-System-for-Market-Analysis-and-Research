@@ -111,6 +111,32 @@ class PreferenceResponse(BaseModel):
 # 5. WATCHLIST
 # ---------------------------------------------------------
 
+# ---------------------------------------------------------
+# 5. WATCHLISTS AND SAVED STOCKS
+# ---------------------------------------------------------
+
+class WatchlistCreate(BaseModel):
+
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100
+    )
+
+
+class WatchlistResponse(BaseModel):
+
+    watchlist_id: int
+
+    user_id: int
+
+    name: str
+
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class WatchlistAdd(BaseModel):
 
     ticker: str = Field(
@@ -121,18 +147,17 @@ class WatchlistAdd(BaseModel):
     )
 
 
-class WatchlistResponse(BaseModel):
+class SavedStockResponse(BaseModel):
 
     saved_stock_id: int
 
-    ticker: str
+    watchlist_id: int
 
-    user_id: int
+    ticker: str
 
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
 
 # ---------------------------------------------------------
 # 6. RESEARCH HISTORY

@@ -70,11 +70,11 @@ class User(Base):
         cascade="all, delete-orphan"
     )
 
-    watchlist = relationship(
-        "SavedStock",
-        back_populates="user",
-        cascade="all, delete-orphan"
-    )
+    watchlists = relationship(
+    "Watchlist",
+    back_populates="user",
+    cascade="all, delete-orphan"
+)
 
     research_tasks = relationship(
         "ResearchTask",
@@ -395,9 +395,52 @@ class ResearchReport(Base):
         ),
     )
 
+# ---------------------------------------------------------
+# 7. WATCHLISTS
+# ---------------------------------------------------------
+
+class Watchlist(Base):
+    __tablename__ = "watchlists"
+
+    watchlist_id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    name = Column(
+        String(100),
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False
+    )
+
+    user = relationship(
+        "User",
+        back_populates="watchlists"
+    )
+
+    stocks = relationship(
+        "SavedStock",
+        back_populates="watchlist",
+        cascade="all, delete-orphan"
+    )
 
 # ---------------------------------------------------------
 # 7. SAVED STOCKS / WATCHLIST
+# ---------------------------------------------------------
+
+# ---------------------------------------------------------
+# 8. SAVED STOCKS
 # ---------------------------------------------------------
 
 class SavedStock(Base):
@@ -408,9 +451,9 @@ class SavedStock(Base):
         primary_key=True
     )
 
-    user_id = Column(
+    watchlist_id = Column(
         Integer,
-        ForeignKey("users.user_id", ondelete="CASCADE"),
+        ForeignKey("watchlists.watchlist_id", ondelete="CASCADE"),
         nullable=False
     )
 
@@ -426,15 +469,15 @@ class SavedStock(Base):
         nullable=False
     )
 
-    user = relationship(
-        "User",
-        back_populates="watchlist"
+    watchlist = relationship(
+        "Watchlist",
+        back_populates="stocks"
     )
 
     __table_args__ = (
         UniqueConstraint(
-            "user_id",
+            "watchlist_id",
             "ticker",
-            name="uq_user_saved_ticker"
+            name="uq_watchlist_saved_ticker"
         ),
     )
