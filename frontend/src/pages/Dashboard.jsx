@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, clearToken } from "../api.js";
+import StockSearch from "../components/StockSearch.jsx";
+import PricePanel from "../components/PricePanel.jsx";
 
 const MARKETS = [
   ["NSE", "NSE – National Stock Exchange of India"],
@@ -19,6 +21,7 @@ export default function Dashboard() {
   const [history, setHistory] = useState([]);
   const [prefs, setPrefs] = useState({ preferred_market: "NSE", default_period: "1Y" });
   const [ticker, setTicker] = useState("");
+  const [viewTicker, setViewTicker] = useState(null);
   const [note, setNote] = useState({ type: "", text: "" });
 
   function signOut() {
@@ -57,17 +60,35 @@ export default function Dashboard() {
     }
   }
 
-  async function addStock(e) {
-    e.preventDefault();
-    if (!ticker.trim()) return;
+  async function addTicker(t) {
     try {
-      const item = await api("/watchlist", { method: "POST", body: { ticker } });
+      const item = await api("/watchlist", { method: "POST", body: { ticker: t } });
       setWatchlist([item, ...watchlist]);
-      setTicker("");
       setNote({ type: "ok", text: `${item.ticker} added to your watchlist.` });
+      return true;
+    } catch (err) {
+      handle(err);
+      return false;
+    }
+  }
+
+  async function startResearch(t) {
+    try {
+      const task = await api("/research-tasks", {
+        method: "POST",
+        body: { ticker: t, market: prefs.preferred_market, period: prefs.default_period },
+      });
+      setHistory([task, ...history]);
+      setNote({ type: "ok", text: `Research for ${task.ticker} added to your history (status: ${task.status}).` });
     } catch (err) {
       handle(err);
     }
+  }
+
+  async function addStock(e) {
+    e.preventDefault();
+    if (!ticker.trim()) return;
+    if (await addTicker(ticker)) setTicker("");
   }
 
   async function removeStock(id) {
@@ -105,6 +126,13 @@ export default function Dashboard() {
           <div className="card"><span className="stat">{prefs.preferred_market}</span> Preferred market</div>
         </div>
 
+        <StockSearch market={prefs.preferred_market} onAdd={addTicker} onView={setViewTicker} onResearch={startResearch} onError={handle} />
+
+        {viewTicker && (
+          <PricePanel onResearch={startResearch} ticker={viewTicker} period={prefs.default_period} market={prefs.preferred_market}
+                      onClose={() => setViewTicker(null)} onError={handle} />
+        )}
+
         <div className="two-col">
           <section className="card">
             <h3>Preferences</h3>
@@ -139,7 +167,11 @@ export default function Dashboard() {
                 {watchlist.map((s) => (
                   <li key={s.saved_stock_id}>
                     <strong>{s.ticker}</strong>
-                    <button className="link-btn" onClick={() => removeStock(s.saved_stock_id)}>Remove</button>
+                    <span className="row-actions">
+                      <button className="link-btn link-blue" onClick={() => setViewTicker(s.ticker)}>View prices</button>
+                      <button className="link-btn link-blue" onClick={() => startResearch(s.ticker)}>Start research</button>
+                      <button className="link-btn" onClick={() => removeStock(s.saved_stock_id)}>Remove</button>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -157,13 +189,14 @@ export default function Dashboard() {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Ticker</th><th>Market</th><th>Period</th><th>Date</th><th>Status</th></tr>
+                  <tr><th>Ticker</th><th>Market</th><th>Period</th><th>Date</th><th>Status</th><th>Report</th></tr>
                 </thead>
                 <tbody>
                   {history.map((t) => (
                     <tr key={t.task_id}>
                       <td>{t.ticker}</td><td>{t.market}</td><td>{t.requested_period}</td>
                       <td>{new Date(t.created_at).toLocaleDateString()}</td><td>{t.status}</td>
+                      <td className="muted">{t.status === "Completed" ? "Open" : "Not ready yet"}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import marketdata
 import models
 import schemas
 from database import Base, engine, get_db
@@ -120,7 +121,79 @@ def remove_from_watchlist(
     db.commit()
 
 
+@app.post("/api/research-tasks", response_model=schemas.ResearchTaskOut, status_code=201)
+def start_research(
+    body: schemas.TaskIn,
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Creates a research task for the logged-in user (the agents that run it come later)."""
+    task = models.ResearchTask(
+        user_id=user.user_id,  # taken from the verified token, never from the browser
+        ticker=marketdata.normalize_ticker(body.ticker, body.market),
+        market=body.market,
+        requested_period=body.period,
+        status="Pending",
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
 @app.get("/api/research-history", response_model=list[schemas.ResearchTaskOut])
 def research_history(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     q = select(models.ResearchTask).where(models.ResearchTask.user_id == user.user_id)
     return db.scalars(q.order_by(models.ResearchTask.created_at.desc())).all()
+
+
+# ---------- Point 2: stock search and market data (Yahoo Finance) ----------
+@app.get("/api/stocks/search")
+def stock_search(
+    q: str = Query(min_length=2, max_length=60),
+    market: schemas.Market | None = None,
+    user: models.User = Depends(get_current_user),
+):
+    try:
+        return marketdata.search_stocks(q, market)
+    except marketdata.MarketDataError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc))
+
+
+@app.get("/api/stocks/{ticker}/history")
+def stock_history(
+    ticker: str,
+    period: schemas.Period = "1Y",
+    market: schemas.Market | None = None,
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    symbol = marketdata.normalize_ticker(ticker, market or "")
+    try:
+        data = marketdata.get_history(symbol, period)
+    except marketdata.MarketDataError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc))
+
+    if not data["from_cache"]:
+        # Record where the data came from and when it was retrieved.
+        db.add(models.SourceDocument(
+            source_type="market_data",
+            title=f"Price history (OHLCV): {symbol}, {period}",
+            source_url=data["source"]["url"],
+            content_hash=marketdata.content_hash(data),
+        ))
+        db.commit()
+    return data
+
+
+@app.get("/api/stocks/{ticker}/profile")
+def stock_profile(
+    ticker: str,
+    market: schemas.Market | None = None,
+    user: models.User = Depends(get_current_user),
+):
+    symbol = marketdata.normalize_ticker(ticker, market or "")
+    try:
+        return marketdata.get_profile(symbol)
+    except marketdata.MarketDataError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc))

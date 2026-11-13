@@ -79,3 +79,17 @@ class ResearchTaskOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TaskIn(BaseModel):
+    ticker: str = Field(min_length=1, max_length=20)
+    market: Market
+    period: Period
+
+    @field_validator("ticker")
+    @classmethod
+    def clean_ticker(cls, v):
+        v = v.strip().upper()
+        if not v.replace(".", "").replace("-", "").replace("&", "").isalnum():
+            raise ValueError("Ticker can only contain letters, numbers, . - &")
+        return v

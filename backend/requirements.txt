@@ -6,3 +6,5 @@ pyjwt
 bcrypt
 email-validator
 python-dotenv
+yfinance
+pandas
