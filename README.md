@@ -1034,33 +1034,39 @@ erDiagram
 If you already have Python, Node.js, and PostgreSQL running:
 
 ```powershell
-# 1. Start PostgreSQL Database
-# (Ensure database 'stock_analyst' is created)
+# 1. Clone repository on the Sahithi branch
+git clone -b Sahithi https://github.com/springboardmentor14424a-ops/-AI-Powered-Multi-Agent-System-for-Market-Analysis-and-Research.git
+cd -AI-Powered-Multi-Agent-System-for-Market-Analysis-and-Research
 
-# 2. Start Backend (Terminal 1)
+# 2. Setup Environment Files
+Copy-Item backend\.env.example backend\.env
+Copy-Item frontend\.env.example frontend\.env
+
+# 3. Start Backend (Terminal 1)
 cd backend
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
 python run.py
 
-# 3. Start Frontend (Terminal 2)
-cd frontend
+# 4. Start Frontend (Terminal 2)
+cd ..\frontend
 npm install
 npm run dev
 
-# 4. Open Application
+# 5. Open Application
 # Visit http://localhost:5173
 ```
 
 ---
 
-### Detailed Step-by-Step Guide
+### Detailed Step-by-Step Guide for a New Developer
 
 #### Step 1: Clone the Repository
+Open PowerShell or your command prompt:
 ```powershell
-git clone <repository-url>
-cd infosys_spring_board
+git clone -b Sahithi https://github.com/springboardmentor14424a-ops/-AI-Powered-Multi-Agent-System-for-Market-Analysis-and-Research.git
+cd -AI-Powered-Multi-Agent-System-for-Market-Analysis-and-Research
 ```
 
 #### Step 2: Open in Visual Studio Code
@@ -1068,73 +1074,84 @@ cd infosys_spring_board
 code .
 ```
 
-#### Step 3: Configure PostgreSQL
-Open PowerShell and create the application database:
-```powershell
-psql -U postgres -h localhost -c "CREATE DATABASE stock_analyst;"
-```
+#### Step 3: Choose Your Database Setup (PostgreSQL or Zero-Config SQLite)
+
+- **Option A: PostgreSQL (Production Standard)**:
+  Make sure PostgreSQL service is running, then create the database:
+  ```powershell
+  psql -U postgres -h localhost -c "CREATE DATABASE stock_analyst;"
+  ```
+  In `backend/.env`, set:
+  ```env
+  DATABASE_URL=postgresql+psycopg2://postgres:YOUR_PASSWORD@localhost:5432/stock_analyst
+  ```
+
+- **Option B: SQLite (Instant Zero-Config Testing - No DB Server Required)**:
+  If you don't have PostgreSQL installed and want to run the full application instantly, you can use SQLite:
+  In `backend/.env`, set:
+  ```env
+  DATABASE_URL=sqlite:///./stock_research.db
+  ```
+  *(SQLAlchemy will automatically create `stock_research.db` in the backend folder upon launch).*
 
 #### Step 4: Configure Backend Environment Variables
-Create `backend/.env` with your PostgreSQL password:
+Copy the template file to `.env`:
 ```powershell
-# In backend/.env
-DATABASE_URL=postgresql+psycopg2://postgres:YOUR_PASSWORD@localhost:5432/stock_analyst
+Copy-Item backend\.env.example backend\.env
+```
+Open `backend/.env` in VS Code and verify the settings:
+```env
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/stock_analyst
 SECRET_KEY=9a8d8e7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
+SESSION_INACTIVITY_MINUTES=15
+SESSION_COOKIE_NAME=session_token
+SESSION_COOKIE_SECURE=False
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
 ```
 
-#### Step 5: Install Backend Dependencies
+#### Step 5: Install Backend Dependencies & Start Server
 Open **Terminal 1** in VS Code:
 ```powershell
 cd backend
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-#### Step 6: Verify Database Connection
-```powershell
-python ..\view_db.py
-```
-
-#### Step 7: Start Backend Server
-```powershell
 python run.py
 ```
-*Backend is now listening on `http://127.0.0.1:8000`.*
+*You will see `Uvicorn running on http://0.0.0.0:8000`. Database tables are automatically verified and created.*
 
-#### Step 8: Configure Frontend Environment Variables
-Open a new **Terminal 2** in VS Code and verify `frontend/.env`:
+#### Step 6: Configure Frontend Environment Variables
+Copy the template file in a new **Terminal 2**:
 ```powershell
-cd frontend
-# Ensure frontend/.env contains:
-# VITE_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
-# VITE_API_URL=/api
+Copy-Item frontend\.env.example frontend\.env
 ```
+*Ensure `frontend/.env` contains `VITE_API_URL=/api` and optionally your `VITE_GOOGLE_CLIENT_ID`.*
 
-#### Step 9: Install Frontend Dependencies & Start
+#### Step 7: Install Frontend Dependencies & Start Development Server
 In **Terminal 2**:
 ```powershell
+cd frontend
 npm install
 npm run dev
 ```
-*Frontend is now listening on `http://localhost:5173`.*
+*Vite starts on `http://localhost:5173` with reverse proxy to `http://127.0.0.1:8000`.*
 
-#### Step 10: Open Browser & Test Features
+#### Step 8: Open Browser & Test the Complete Flow
 1. Open [http://localhost:5173/](http://localhost:5173/).
-2. Click **"Register"** and create an account.
-3. Test **Workspace Preferences**: Switch exchange market to **NSE** and period to **6 Months**. Click **Save**.
-4. Test **Company Autocomplete**: In "Start New Research Task", type `TAT` $\rightarrow$ select `Tata Motors Limited`.
-5. Click **"Start Research"** $\rightarrow$ Observe real-time status: **`Pending`** $\rightarrow$ **`Processing`** $\rightarrow$ **`Completed`**.
-6. Click **"View Report"** $\rightarrow$ Inspect fundamental metrics and click **"+ Watchlist"**.
-7. Navigate to the **Dedicated Watchlist** tab $\rightarrow$ Click **"▶ Research Now"**.
+2. Click **"Register"** and create a test account (e.g., `analyst@example.com` / `Password123!`).
+3. **Workspace Preferences**: Switch exchange market to **NSE** and period to **6 Months**, then click **Save**.
+4. **Company Autocomplete**: In "Start New Research Task", type `TAT` $\rightarrow$ select `Tata Motors Limited`.
+5. Click **"Start Research"** $\rightarrow$ Observe real-time status transitions: **`Pending`** $\rightarrow$ **`Processing`** $\rightarrow$ **`Completed`**.
+6. Click **"View Report"** $\rightarrow$ Inspect comprehensive financial dossier and click **"+ Watchlist"**.
+7. Navigate to the **Dedicated Watchlist** tab $\rightarrow$ Click **"▶ Research Now"** to test one-click research pre-fill.
+8. Click **Logout** in the top navigation bar $\rightarrow$ Confirm session revocation and redirect to login.
 
 ---
 
 ### One-Click Windows Launcher
-On Windows, you can launch the entire stack (PostgreSQL verification, backend server, frontend server, and browser) with a single double-click on `start_app.bat`:
+On Windows, once dependencies are installed, you can launch both backend and frontend servers together by double-clicking:
 ```powershell
 .\start_app.bat
 ```
