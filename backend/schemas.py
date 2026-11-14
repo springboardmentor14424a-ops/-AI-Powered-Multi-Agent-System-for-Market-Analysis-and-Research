@@ -71,6 +71,18 @@ class UserLogin(BaseModel):
         min_length=1
     )
 
+# ---------------------------------------------------------
+# 2A. GOOGLE AUTHENTICATION
+# ---------------------------------------------------------
+
+class GoogleAuthRequest(BaseModel):
+
+    credential: str = Field(
+        ...,
+        min_length=1
+    )
+
+
 
 # ---------------------------------------------------------
 # 3. AUTHENTICATION RESPONSE

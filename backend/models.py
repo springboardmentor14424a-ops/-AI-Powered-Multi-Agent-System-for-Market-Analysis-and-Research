@@ -53,8 +53,18 @@ class User(Base):
 
     password_hash = Column(
         String(255),
-        nullable=False
+        nullable=True
     )
+
+    google_sub = Column(
+        String(255),
+        unique=True,
+        nullable=True,
+        index=True
+    )
+
+
+    
 
     created_at = Column(
         DateTime(timezone=True),

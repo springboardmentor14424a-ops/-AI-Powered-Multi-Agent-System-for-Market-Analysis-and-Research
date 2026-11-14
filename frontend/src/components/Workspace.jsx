@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import StockChart from './StockChart';
+import { GoogleLogin } from '@react-oauth/google';
 import {
   Search, Plus, Trash2, History, Settings, TrendingUp,
   LogOut, Loader2, Sparkles, BarChart3, Globe, Clock,
@@ -319,6 +320,34 @@ const [history, setHistory] = useState([]);
       setAuthLoading(false);
     }
   }
+
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+  setError('');
+  setMessage('');
+  setAuthLoading(true);
+
+  try {
+    const data = await apiRequest('/auth/google', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        credential: credentialResponse.credential,
+      }),
+    });
+
+    setToken(data.access_token);
+    setEmail(data.email);
+    setFullName(data.full_name);
+    setPassword('');
+  } catch (err) {
+    setError(err.message || 'Google sign-in failed.');
+  } finally {
+    setAuthLoading(false);
+  }
+};
 
   function handleLogout() {
     setToken('');
@@ -912,16 +941,18 @@ async function createWatchlist() {
                 <div style={dividerLine} />
               </div>
 
-              <button
-                type="button"
-                onClick={() => setMessage(
-                  'Google sign-in requires Google OAuth credentials. It has not been configured yet.'
-                )}
-                style={googleButton}
-              >
-                <span style={googleLetter}>G</span>
-                Continue with Google
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+  <GoogleLogin
+    onSuccess={handleGoogleSuccess}
+    onError={() => setError('Google sign-in failed. Please try again.')}
+    useOneTap={false}
+    theme="outline"
+    size="large"
+    shape="rectangular"
+    text="continue_with"
+    width="340"
+  />
+</div>
 
               {/* REGISTER / LOGIN SWITCH */}
 

@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import yfinance as yf
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -32,6 +34,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 APP_NAME = "Multi-Agent Stock Research Analyst"
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 # Configure this environment variable with comma-separated
 # frontend origins, e.g. http://localhost:5173
@@ -277,10 +281,14 @@ def login_user(
         .first()
     )
 
-    if not user or not auth.verify_password(
+    if (
+    not user
+    or not user.password_hash
+    or not auth.verify_password(
         form_data.password,
         user.password_hash
-    ):
+    )
+):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password.",
@@ -295,6 +303,127 @@ def login_user(
         "access_token": token,
         "token_type": "bearer"
     }
+
+@app.post("/api/auth/google")
+def google_login(
+    payload: schemas.GoogleAuthRequest,
+    db: Session = Depends(database.get_db)
+):
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google sign-in is not configured."
+        )
+
+    # 1. Verify the credential with Google
+    try:
+        google_user = id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            GOOGLE_CLIENT_ID
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Google credential."
+        )
+
+    # 2. Extract and validate Google's account details
+    google_sub = google_user.get("sub")
+    email = (google_user.get("email") or "").strip().lower()
+    full_name = (google_user.get("name") or "").strip()
+
+    if (
+        not google_sub
+        or not email
+        or google_user.get("email_verified") is not True
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google account email could not be verified."
+        )
+
+    try:
+        # 3. Look for an account already linked to this Google identity
+        user = (
+            db.query(models.User)
+            .filter(models.User.google_sub == google_sub)
+            .first()
+        )
+
+        # 4. If not linked, check whether this email already has an account
+        if user is None:
+            user = (
+                db.query(models.User)
+                .filter(models.User.email == email)
+                .first()
+            )
+
+            if user:
+                if user.google_sub and user.google_sub != google_sub:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="This email is linked to another Google account."
+                    )
+
+                # Link the verified Google identity to the existing account
+                user.google_sub = google_sub
+
+            else:
+                # 5. Create a new Google-only account
+                user = models.User(
+                    full_name=full_name or email.split("@")[0],
+                    email=email,
+                    password_hash=None,
+                    google_sub=google_sub
+                )
+
+                db.add(user)
+                db.flush()
+
+                db.add(
+                    models.UserPreference(
+                        user_id=user.user_id
+                    )
+                )
+
+        # 6. Save account changes
+        db.commit()
+        db.refresh(user)
+
+        # 7. Issue the same JWT format used by password login
+        token = auth.create_access_token(
+            data={"user_id": user.user_id}
+        )
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "email": user.email,
+            "full_name": user.full_name
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except IntegrityError:
+        db.rollback()
+        logger.exception("Google account creation or linking conflict.")
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Unable to link this Google account. Please try again."
+        )
+
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Database error during Google authentication.")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to complete Google sign-in."
+        )
 
 
 # ---------------------------------------------------------
