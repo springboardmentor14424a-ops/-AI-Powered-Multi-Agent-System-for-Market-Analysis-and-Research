@@ -1,0 +1,102 @@
+
+.watchlist-card {
+  background: white;
+  padding: 25px;
+  margin-top: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.watchlist-card h2 {
+  margin-bottom: 10px;
+}
+
+.stock-search-form {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.stock-search-form input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.stock-search-form button,
+.watchlist-stock button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.stock-search-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.watchlist-results,
+.saved-stocks-section {
+  margin-top: 25px;
+}
+
+.watchlist-stock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  margin-top: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.watchlist-stock p {
+  margin: 5px 0;
+  color: #64748b;
+}
+
+.watchlist-stock small {
+  color: #64748b;
+}
+
+.watchlist-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.watchlist-stock .remove-stock-button {
+  background: #dc2626;
+}
+
+.saved-label {
+  color: #15803d;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.watchlist-error {
+  color: #dc2626;
+  margin: 10px 0;
+}
+
+.watchlist-success {
+  color: #15803d;
+  margin: 10px 0;
+}
+
+@media (max-width: 600px) {
+  .stock-search-form {
+    flex-direction: column;
+  }
+
+  .watchlist-stock {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,73 @@
+
+.preferences-card {
+  background: white;
+  padding: 25px;
+  margin-top: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.preferences-card h2 {
+  margin-bottom: 10px;
+}
+
+.preferences-card > p {
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.preferences-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: end;
+}
+
+.preference-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preference-field label {
+  font-weight: 600;
+}
+
+.preference-field select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: white;
+}
+
+.preferences-form button {
+  grid-column: 1 / -1;
+  padding: 12px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.preferences-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.preferences-error {
+  color: #dc2626 !important;
+  margin-top: 15px;
+}
+
+.preferences-success {
+  color: #15803d !important;
+  margin-top: 15px;
+}
+
+@media (max-width: 600px) {
+  .preferences-form {
+    grid-template-columns: 1fr;
+  }
+}

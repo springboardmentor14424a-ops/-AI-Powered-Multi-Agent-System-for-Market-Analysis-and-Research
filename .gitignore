@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment variables and secrets
+.env
+backend/app/.env
+
+# React
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+
+# Python generated files
+*.log
