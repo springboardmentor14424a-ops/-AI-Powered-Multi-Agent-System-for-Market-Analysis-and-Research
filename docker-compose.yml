@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: stock_analyst_db
+    restart: always
+    environment:
+      POSTGRES_USER: stock_user
+      POSTGRES_PASSWORD: stock_password
+      POSTGRES_DB: stock_research_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stock_analyst_backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://stock_user:stock_password@db:5432/stock_research_db
+      SECRET_KEY: 9a8d8e7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:
