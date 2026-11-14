@@ -2,7 +2,7 @@ from app.database import SessionLocal
 from app.models import PROCESSING, ResearchTask, User
 from app.workflow import mark_interrupted_tasks
 
-PASSWORD = "Str0ngPassw0rd"
+PASSWORD = "Str0ng!Passw0rd"
 TASK = {
     "company_name": "Apple Inc.",
     "ticker": "aapl",

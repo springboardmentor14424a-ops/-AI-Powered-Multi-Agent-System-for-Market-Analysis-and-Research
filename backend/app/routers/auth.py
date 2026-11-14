@@ -8,27 +8,13 @@ from ..database import get_db
 from ..deps import get_current_user
 from ..models import User
 from ..schemas import LoginIn, LoginOut, RegisterIn, RegisterOut, SessionOut, UserOut
-from ..security import (
-    DUMMY_HASH,
-    create_access_token,
-    hash_password,
-    new_csrf_token,
-    verify_password,
-)
+from ..security import DUMMY_HASH, hash_password, verify_password
+from ..session import cookie_args, start_session
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 EMAIL_TAKEN = "This email is already registered. Try signing in instead."
 BAD_CREDENTIALS = "Incorrect email or password."
-
-
-def _cookie_args() -> dict:
-    return {
-        "httponly": True,
-        "secure": settings.COOKIE_SECURE,
-        "samesite": settings.COOKIE_SAMESITE,
-        "path": "/",
-    }
 
 
 @router.post("/register", response_model=RegisterOut, status_code=status.HTTP_201_CREATED)
@@ -60,17 +46,15 @@ def login(payload: LoginIn, response: Response, db: Session = Depends(get_db)):
 
     # Always run one bcrypt verification so timing doesn't reveal whether the
     # email exists, and use one generic message for both failure cases.
+    # Accounts created through social sign-in have no password, so they can never match here.
+    has_password = user is not None and user.password_hash is not None
     password_ok = verify_password(
-        payload.password, user.password_hash if user else DUMMY_HASH
+        payload.password, user.password_hash if has_password else DUMMY_HASH
     )
-    if user is None or not password_ok:
+    if not has_password or not password_ok:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, BAD_CREDENTIALS)
 
-    token = create_access_token(user.id)
-    csrf = new_csrf_token()
-    max_age = settings.JWT_EXPIRE_MINUTES * 60
-    response.set_cookie(settings.COOKIE_NAME, token, max_age=max_age, **_cookie_args())
-    response.set_cookie(settings.CSRF_COOKIE_NAME, csrf, max_age=max_age, **_cookie_args())
+    csrf = start_session(response, user.id)
 
     return LoginOut(
         message="Signed in successfully.",
@@ -81,8 +65,8 @@ def login(payload: LoginIn, response: Response, db: Session = Depends(get_db)):
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie(settings.COOKIE_NAME, **_cookie_args())
-    response.delete_cookie(settings.CSRF_COOKIE_NAME, **_cookie_args())
+    response.delete_cookie(settings.COOKIE_NAME, **cookie_args())
+    response.delete_cookie(settings.CSRF_COOKIE_NAME, **cookie_args())
     return {"message": "Signed out."}
 
 

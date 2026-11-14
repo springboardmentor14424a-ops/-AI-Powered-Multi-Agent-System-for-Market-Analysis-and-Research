@@ -137,7 +137,7 @@ export default function Dashboard() {
               <dt>Name</dt>
               <dd>{user.full_name}</dd>
               <dt>Email</dt>
-              <dd>{user.email}</dd>
+              <dd>{user.email.endsWith("@users.invalid") ? "Not shared by your sign-in provider" : user.email}</dd>
               <dt>Member since</dt>
               <dd>{memberSince}</dd>
             </dl>

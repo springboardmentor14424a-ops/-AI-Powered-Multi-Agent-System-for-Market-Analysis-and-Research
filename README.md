@@ -65,6 +65,28 @@ Restart the backend after training. Everything lands in `backend/data/` (ignored
 - Licences differ: Financial PhraseBank is non-commercial (fine for coursework), FNSPID is CC BY 4.0, Kaggle datasets vary by page, and Yahoo Finance data is for personal use. Check before any commercial use.
 - Not used (too large or not an open API): EDGAR-CORPUS 10-K text, FinQA / FinanceBench (these are for evaluating LLM answers), and Screener.in (no public API).
 
+## Social sign-in (Google, Microsoft, Apple, X)
+
+The four buttons on the Login/Register pages work through OAuth 2.0 / OpenID Connect. A button is **active only when its keys are in `backend/.env`**; otherwise clicking it explains that the provider isn't set up. Password sign-in keeps working either way. Restart the backend after editing `.env`.
+
+For each provider, register this **redirect URI** (replace the host when you deploy; `PUBLIC_URL` in `.env` must match it):
+
+`http://localhost:5173/api/auth/oauth/<provider>/callback`  with `<provider>` = `google`, `microsoft`, `apple` or `x`.
+
+| Provider | Where to get keys | `.env` values |
+|---|---|---|
+| Google | Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID (Web application) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Microsoft | Azure / Entra admin centre → App registrations → New (accounts in any org + personal) → Certificates & secrets → New client secret | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` (use the secret *Value*) |
+| X | developer.x.com → your app → User authentication settings → OAuth 2.0, type "Web App" | `X_CLIENT_ID`, `X_CLIENT_SECRET` |
+| Apple | Apple Developer (paid) → Identifiers → Services ID with "Sign in with Apple", plus a Key (.p8) | `APPLE_CLIENT_ID` (Services ID), `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_PATH` |
+
+How accounts behave:
+- First social sign-in creates a user (no password, `users.password_hash` is NULL) and a row in `oauth_accounts`. Next time the same provider identity signs in to the same user.
+- An identity is **never auto-linked to an existing account by email**. If the email is already registered you get "sign in with your email and password instead". (Linking after login would be the safe next feature.)
+- Google/Apple emails are used only when the provider marks them verified. Microsoft and X don't supply a trusted email, so those users get a placeholder address (`...@users.invalid`).
+- Apple requires HTTPS on a public domain (it rejects `localhost`), so test it after deploying. Google, Microsoft and X accept `http://localhost`.
+- Existing local databases: on start-up the app creates `oauth_accounts` and relaxes `password_hash` to allow NULL automatically.
+
 ## Endpoints
 
 | Method | Path | Purpose |

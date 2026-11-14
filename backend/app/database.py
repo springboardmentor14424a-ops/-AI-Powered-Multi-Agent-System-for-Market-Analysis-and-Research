@@ -21,6 +21,18 @@ class Base(DeclarativeBase):
     pass
 
 
+def init_db() -> None:
+    """Create missing tables, and apply the one in-place change older local databases need
+    (social accounts have no password, so users.password_hash must allow NULL).
+    For bigger schema changes later, move to Alembic migrations."""
+    from sqlalchemy import text
+
+    Base.metadata.create_all(bind=engine)
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as conn:  # harmless if the column is already nullable
+            conn.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"))
+
+
 def get_db():
     db = SessionLocal()
     try:

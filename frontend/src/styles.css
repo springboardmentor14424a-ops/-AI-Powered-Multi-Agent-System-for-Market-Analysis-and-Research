@@ -189,3 +189,12 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 @media (prefers-reduced-motion: reduce) {
   .dot, .spinner { animation: none; }
 }
+
+/* ---- social sign-in ---- */
+.social { margin-bottom: 1rem; }
+.social-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.social-btn { display: flex; align-items: center; justify-content: center; gap: .55rem; }
+.social-btn svg { width: 18px; height: 18px; flex: none; }
+.social-btn.is-off { opacity: .6; }
+.divider { display: flex; align-items: center; gap: .8rem; margin: 1.1rem 0 .2rem; color: var(--muted); font-size: .82rem; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }

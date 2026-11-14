@@ -9,8 +9,8 @@ from app.models import User
 VALID = {
     "full_name": "Ada Lovelace",
     "email": "ada@example.com",
-    "password": "Str0ngPassw0rd",
-    "confirm_password": "Str0ngPassw0rd",
+    "password": "Str0ng!Passw0rd",
+    "confirm_password": "Str0ng!Passw0rd",
 }
 
 
@@ -53,6 +53,9 @@ def test_register_validation_errors(client):
 
     r = register(client, password="alllowercase1", confirm_password="alllowercase1")
     assert "uppercase" in r.json()["errors"]["password"]
+
+    r = register(client, password="NoSpecial1Chars", confirm_password="NoSpecial1Chars")
+    assert "special character" in r.json()["errors"]["password"]
 
     r = register(client, confirm_password="Different1Password")
     assert r.json()["errors"]["confirm_password"] == "Passwords do not match."
@@ -156,3 +159,25 @@ def test_bearer_token_works_without_csrf(client):
     client.cookies.clear()
     r = client.post("/api/_test/echo", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
+
+
+def test_which_characters_count_as_special(client):
+    # letters, digits and spaces are not special; punctuation and underscore are
+    for pw in ["Abcdefg1 2", "Abcdefg12345"]:
+        r = register(client, password=pw, confirm_password=pw)
+        assert r.status_code == 422 and "special" in r.json()["errors"]["password"], pw
+    for i, pw in enumerate(["Abcdefg1!", "Abcdefg1_", "Abcdefg1-x", "Abcdefg1#", "Abcdefg1é"]):
+        r = register(client, email=f"u{i}@example.com", password=pw, confirm_password=pw)
+        assert r.status_code == 201, pw
+
+
+def test_existing_users_without_a_special_character_can_still_sign_in(client):
+    # The rule applies to new passwords only; login never re-checks strength.
+    from app.database import SessionLocal
+    from app.models import User
+    from app.security import hash_password
+
+    with SessionLocal() as db:
+        db.add(User(full_name="Old User", email="old@example.com", password_hash=hash_password("OldPassw0rd")))
+        db.commit()
+    assert login(client, email="old@example.com", password="OldPassw0rd").status_code == 200

@@ -38,6 +38,9 @@ class RegisterIn(BaseModel):
             raise ValueError("Password must include an uppercase letter.")
         if not re.search(r"\d", v):
             raise ValueError("Password must include a number.")
+        # Anything that isn't a letter, digit or whitespace (! @ # $ % ^ & * _ - etc.)
+        if not re.search(r"[^A-Za-z0-9\s]", v):
+            raise ValueError("Password must include a special character (e.g. ! @ # $ %).")
         return v
 
     @field_validator("confirm_password")

@@ -4,12 +4,14 @@ import { ApiError } from "../api";
 import { useAuth } from "../auth";
 import AuthLayout from "../components/AuthLayout";
 import Field from "../components/Field";
+import SocialButtons from "../components/SocialButtons";
 
 const RULES = [
   ["At least 8 characters", (p) => p.length >= 8],
   ["A lowercase letter", (p) => /[a-z]/.test(p)],
   ["An uppercase letter", (p) => /[A-Z]/.test(p)],
   ["A number", (p) => /\d/.test(p)],
+  ["A special character (! @ # $ %)", (p) => /[^A-Za-z0-9\s]/.test(p)],
 ];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -86,6 +88,7 @@ export default function Register() {
         </>
       }
     >
+      <SocialButtons verb="Sign up" onNotice={setFormError} />
       <form onSubmit={onSubmit} noValidate>
         {formError && (
           <div className="alert alert-error" role="alert">

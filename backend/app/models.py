@@ -19,8 +19,30 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(100), nullable=False)
     # Stored lowercase; the UNIQUE constraint is what really prevents duplicates.
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True, nullable=False)
-    # bcrypt hash only - the plain-text password is never stored.
-    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    # bcrypt hash only - the plain-text password is never stored. NULL for accounts
+    # created through social sign-in (they have no password).
+    password_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class OAuthAccount(Base):
+    """Links a user to an identity at a social provider (Google, Microsoft, Apple, X)."""
+
+    __tablename__ = "oauth_accounts"
+    __table_args__ = (
+        # One provider identity can only ever belong to one user.
+        UniqueConstraint("provider", "subject", name="uq_oauth_provider_subject"),
+    )
+
+    id: Mapped[int] = mapped_column("oauth_account_id", Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)  # the provider's stable user id
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

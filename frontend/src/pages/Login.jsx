@@ -1,14 +1,22 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api";
 import { useAuth } from "../auth";
 import AuthLayout from "../components/AuthLayout";
 import Field from "../components/Field";
+import SocialButtons from "../components/SocialButtons";
+
+const SOCIAL_ERRORS = {
+  signin_failed: "Sign-in with that provider didn't complete. Please try again.",
+  provider_not_configured: "That sign-in method isn't set up on this server yet.",
+  email_exists: "An account with that email already exists. Sign in with your email and password instead.",
+};
 
 export default function Login() {
   const { login, expired } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
+  const [params] = useSearchParams();
+  const [error, setError] = useState(SOCIAL_ERRORS[params.get("error")] || "");
   const [submitting, setSubmitting] = useState(false);
 
   const onChange = (e) => {
@@ -43,6 +51,7 @@ export default function Login() {
         </>
       }
     >
+      <SocialButtons onNotice={setError} />
       <form onSubmit={onSubmit} noValidate>
         {expired && !error && (
           <div className="alert alert-info" role="status">

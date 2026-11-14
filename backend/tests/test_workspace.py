@@ -1,7 +1,7 @@
 from app.database import SessionLocal
 from app.models import SavedStock, User, UserPreference
 
-PASSWORD = "Str0ngPassw0rd"
+PASSWORD = "Str0ng!Passw0rd"
 
 
 def sign_up_and_in(client, email, name="Some User"):

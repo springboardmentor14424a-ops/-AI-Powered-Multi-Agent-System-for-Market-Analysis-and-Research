@@ -31,6 +31,24 @@ class Settings:
     SEC_USER_AGENT: str = os.getenv("SEC_USER_AGENT", "").strip()
     HTTP_TIMEOUT: int = int(os.getenv("DATA_HTTP_TIMEOUT", "15"))
 
+    # Social sign-in (all optional; a provider is enabled when its credentials are set).
+    # PUBLIC_URL is the address users open in the browser (the frontend). Redirect URIs
+    # registered with each provider are  PUBLIC_URL + /api/auth/oauth/<provider>/callback
+    PUBLIC_URL: str = os.getenv("PUBLIC_URL", "http://localhost:5173").rstrip("/")
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+    MICROSOFT_CLIENT_ID: str = os.getenv("MICROSOFT_CLIENT_ID", "").strip()
+    MICROSOFT_CLIENT_SECRET: str = os.getenv("MICROSOFT_CLIENT_SECRET", "").strip()
+    MICROSOFT_TENANT: str = os.getenv("MICROSOFT_TENANT", "common").strip() or "common"
+    X_CLIENT_ID: str = os.getenv("X_CLIENT_ID", "").strip()
+    X_CLIENT_SECRET: str = os.getenv("X_CLIENT_SECRET", "").strip()
+    APPLE_CLIENT_ID: str = os.getenv("APPLE_CLIENT_ID", "").strip()  # the "Services ID"
+    APPLE_TEAM_ID: str = os.getenv("APPLE_TEAM_ID", "").strip()
+    APPLE_KEY_ID: str = os.getenv("APPLE_KEY_ID", "").strip()
+    # The .p8 private key: either the PEM text (use \n for line breaks) or a file path.
+    APPLE_PRIVATE_KEY: str = os.getenv("APPLE_PRIVATE_KEY", "").strip()
+    APPLE_PRIVATE_KEY_PATH: str = os.getenv("APPLE_PRIVATE_KEY_PATH", "").strip()
+
     # Cookies
     COOKIE_NAME: str = "access_token"
     CSRF_COOKIE_NAME: str = "csrf_token"

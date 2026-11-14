@@ -4,12 +4,13 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
 
 from .config import settings
-from .database import Base, engine
+from .database import init_db
 from .deps import get_current_user
 from .models import User
-from .routers import auth, preferences, research, stocks
+from .routers import auth, oauth, preferences, research, stocks
 from .schemas import UserOut
 from .workflow import mark_interrupted_tasks
 
@@ -18,7 +19,7 @@ from .workflow import mark_interrupted_tasks
 async def lifespan(app: FastAPI):
     # Creates the users table if it doesn't exist. For schema changes later,
     # move to Alembic migrations.
-    Base.metadata.create_all(bind=engine)
+    init_db()
     mark_interrupted_tasks()
     yield
 
@@ -31,6 +32,18 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "Authorization", settings.CSRF_HEADER_NAME],
+)
+
+
+# Holds the short-lived OAuth state/nonce/PKCE values between the redirect to a provider
+# and the callback. Apple returns via a cross-site POST, which needs SameSite=None (HTTPS only).
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.JWT_SECRET,
+    session_cookie="oauth_session",
+    max_age=600,
+    same_site="none" if settings.COOKIE_SECURE else "lax",
+    https_only=settings.COOKIE_SECURE,
 )
 
 
@@ -57,6 +70,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 
 app.include_router(auth.router)
+app.include_router(oauth.router)
 app.include_router(research.router)
 app.include_router(stocks.router)
 app.include_router(preferences.router)
