@@ -1,0 +1,576 @@
+
+/* =====================================
+   DASHBOARD - GLOBAL
+===================================== */
+
+.dashboard-page {
+    min-height: 100vh;
+    background: #FAF7FC;
+    color: #30223A;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+/* =====================================
+   NAVBAR
+===================================== */
+
+.dashboard-navbar {
+    min-height: 75px;
+    padding: 15px 6%;
+    background: #FFFFFF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 3px 15px rgba(76, 35, 101, 0.07);
+    border-bottom: 1px solid #EDE5F1;
+}
+
+.dashboard-navbar h2 {
+    font-size: 23px;
+    color: #4C2365;
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.dashboard-navbar h2 span {
+    color: #9E7EB5;
+}
+
+.navbar-user {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.username {
+    font-weight: 600;
+    color: #4C2365;
+}
+
+.logout-button {
+    background: #F4EFF8;
+    color: #4C2365;
+    border: 1px solid #E4D7ED;
+    padding: 10px 20px;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: 0.3s ease;
+}
+
+.logout-button:hover {
+    background: #4C2365;
+    color: white;
+}
+
+/* =====================================
+   MAIN CONTENT
+===================================== */
+
+.dashboard-content {
+    width: 88%;
+    max-width: 1250px;
+    margin: 40px auto;
+}
+
+.dashboard-content h1 {
+    font-size: 30px;
+    color: #4C2365;
+    margin-bottom: 10px;
+    font-weight: 800;
+}
+
+.welcome-message {
+    color: #786B82;
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.user-email {
+    color: #7F5D99;
+    font-size: 14px;
+    margin-top: 12px;
+}
+
+/* =====================================
+   DASHBOARD CARDS
+===================================== */
+
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin: 35px 0;
+}
+
+.dashboard-card {
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid #E9DDEC;
+    box-shadow: 0 5px 18px rgba(76, 35, 101, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 28px rgba(76, 35, 101, 0.11);
+}
+
+.card-icon {
+    width: 44px;
+    height: 44px;
+    background: #F0E7F5;
+    border: 1px solid #E4D5ED;
+    border-radius: 12px;
+    margin-bottom: 18px;
+}
+
+.dashboard-card h3 {
+    color: #4C2365;
+    margin: 0 0 10px;
+    font-size: 18px;
+}
+
+.dashboard-card p {
+    color: #786B82;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+/* =====================================
+   STOCK SEARCH
+===================================== */
+
+.stock-search-section {
+    background: white;
+    padding: 30px;
+    border-radius: 17px;
+    border: 1px solid #E9DDEC;
+    box-shadow: 0 5px 20px rgba(76, 35, 101, 0.06);
+    margin-top: 35px;
+}
+
+.stock-search-section h2 {
+    color: #4C2365;
+    font-size: 23px;
+    margin-top: 0;
+    margin-bottom: 22px;
+}
+
+.stock-search-section form {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.stock-search-section input,
+.stock-search-section select {
+    flex: 1;
+    min-width: 180px;
+    padding: 13px 15px;
+    border: 1px solid #DFD2E8;
+    border-radius: 9px;
+    font-size: 14px;
+    outline: none;
+    background: #FFFFFF;
+    color: #30223A;
+    transition: 0.3s ease;
+}
+
+.stock-search-section input:focus,
+.stock-search-section select:focus {
+    border-color: #9E7EB5;
+    box-shadow: 0 0 0 4px rgba(158, 126, 181, 0.13);
+}
+
+.stock-search-section form button {
+    background: linear-gradient(135deg, #4C2365, #7F5D99);
+    color: white;
+    border: none;
+    border-radius: 9px;
+    padding: 13px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.stock-search-section form button:hover {
+    background: #4C2365;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 14px rgba(76, 35, 101, 0.2);
+}
+
+.stock-search-section form button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* =====================================
+   STOCK RESULTS
+===================================== */
+
+.stock-result,
+.history-result {
+    background: #FFFFFF;
+    border: 1px solid #E9DDEC;
+    border-radius: 14px;
+    padding: 22px;
+    margin-top: 25px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(76, 35, 101, 0.04);
+}
+
+.stock-result h3,
+.history-result h3 {
+    color: #4C2365;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.stock-result pre,
+.history-result pre {
+    background: #30223A;
+    color: #F4EFF8;
+    padding: 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 450px;
+}
+
+/* =====================================
+   ERROR MESSAGES
+===================================== */
+
+.error {
+    color: #B4233A;
+    background: #FFF1F2;
+    border: 1px solid #F5C8CF;
+    padding: 12px 15px;
+    border-radius: 9px;
+    margin-top: 15px;
+}
+
+/* =====================================
+   SKELETON LOADING
+===================================== */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        #E9DDEC 25%,
+        #F7F2FA 50%,
+        #E9DDEC 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: 8px;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-button {
+    width: 100px;
+    height: 38px;
+}
+
+.skeleton-heading {
+    width: 280px;
+    height: 35px;
+    margin-bottom: 18px;
+}
+
+.skeleton-subheading {
+    width: 65%;
+    height: 18px;
+    margin-bottom: 30px;
+}
+
+.skeleton-icon {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 18px;
+}
+
+.skeleton-title {
+    width: 65%;
+    height: 20px;
+    margin-bottom: 15px;
+}
+
+.skeleton-text {
+    width: 90%;
+    height: 15px;
+}
+
+/* =====================================
+   HISTORICAL CHART
+===================================== */
+
+.history-result {
+    background: #FFFFFF;
+    padding: 25px;
+    border-radius: 15px;
+    border: 1px solid #E9DDEC;
+    margin-top: 30px;
+    overflow: hidden;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.chart-header h3 {
+    margin: 0;
+    color: #4C2365;
+    font-size: 21px;
+}
+
+.chart-header p {
+    color: #786B82;
+    font-size: 14px;
+    margin: 7px 0 0;
+}
+
+.period-label {
+    background: #F0E7F5;
+    color: #4C2365;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* Price summary */
+
+.price-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin-bottom: 30px;
+}
+
+.price-card {
+    background: #FAF7FC;
+    border: 1px solid #E9DDEC;
+    border-radius: 13px;
+    padding: 20px;
+}
+
+.price-card p {
+    color: #786B82;
+    font-size: 14px;
+    margin: 0 0 12px;
+}
+
+.price-card h2 {
+    color: #4C2365;
+    font-size: 25px;
+    margin: 0 0 8px;
+}
+
+.positive {
+    color: #16834B !important;
+}
+
+.negative {
+    color: #C24141 !important;
+}
+
+/* Chart */
+
+.chart-container {
+    width: 100%;
+    height: 350px;
+    margin-top: 20px;
+}
+
+.chart-note {
+    color: #9E7EB5;
+    font-size: 12px;
+    margin-top: 15px;
+}
+
+/* =====================================
+   WATCHLIST TOGGLE BUTTON
+===================================== */
+
+.watchlist-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 12px 21px;
+    background: linear-gradient(135deg, #4C2365, #7F5D99);
+    color: white;
+    border: none;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    margin: 15px 0;
+    box-shadow: 0 4px 12px rgba(76, 35, 101, 0.15);
+}
+
+.watchlist-toggle-btn:hover {
+    background: #4C2365;
+    transform: translateY(-2px);
+    box-shadow: 0 7px 17px rgba(76, 35, 101, 0.22);
+}
+
+.watchlist-toggle-btn.active {
+    background: #F0E7F5;
+    color: #4C2365;
+    border: 1px solid #D8C4E4;
+    box-shadow: none;
+}
+
+.watchlist-toggle-btn.active:hover {
+    background: #E9DDEC;
+}
+
+.watchlist-icon {
+    font-size: 18px;
+}
+
+/* =====================================
+   RESPONSIVE DESIGN
+===================================== */
+
+@media (max-width: 768px) {
+    .dashboard-navbar {
+        padding: 15px 5%;
+    }
+
+    .dashboard-navbar h2 {
+        font-size: 19px;
+    }
+
+    .dashboard-content {
+        width: 90%;
+        margin: 25px auto;
+    }
+
+    .dashboard-content h1 {
+        font-size: 24px;
+    }
+
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .stock-search-section {
+        padding: 20px;
+    }
+
+    .stock-search-section form {
+        flex-direction: column;
+    }
+
+    .stock-search-section input,
+    .stock-search-section select,
+    .stock-search-section form button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .navbar-user {
+        gap: 10px;
+    }
+
+    .username {
+        font-size: 13px;
+    }
+
+    .logout-button {
+        padding: 9px 13px;
+    }
+}
+
+@media (max-width: 600px) {
+    .history-result {
+        padding: 16px;
+    }
+
+    .price-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .price-card h2 {
+        font-size: 21px;
+    }
+
+    .chart-container {
+        height: 280px;
+    }
+
+    .chart-header h3 {
+        font-size: 17px;
+    }
+}
+
+@media (max-width: 450px) {
+    .dashboard-navbar h2 {
+        font-size: 16px;
+    }
+
+    .username {
+        display: none;
+    }
+
+    .dashboard-content h1 {
+        font-size: 21px;
+    }
+
+    .chart-header {
+        align-items: flex-start;
+        gap: 12px;
+        flex-direction: column;
+    }
+}
+
+.add-watchlist-section {
+    margin: 18px 0;
+}
+
+.add-watchlist-btn {
+    background: #4C2365;
+    color: white;
+    border: none;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.add-watchlist-btn:hover {
+    background: #7F5D99;
+    transform: translateY(-2px);
+}
+
+.add-watchlist-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}

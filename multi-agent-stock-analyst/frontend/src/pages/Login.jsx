@@ -2,7 +2,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-function Login({ onLogin }) {
+function Login({ onLogin, onBack }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -103,6 +103,13 @@ function Login({ onLogin }) {
                             disabled={loading}
                         >
                             {loading ? "Signing in..." : "Sign In"}
+                        </button>
+                        <button
+                            type="button"
+                            className="back-button"
+                            onClick={onBack}
+                        >
+                            Back to Welcome
                         </button>
 
                     </form>

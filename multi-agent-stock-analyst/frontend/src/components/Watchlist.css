@@ -1,0 +1,217 @@
+
+/* =====================================
+   WATCHLIST CONTAINER
+===================================== */
+
+.watchlist-container {
+    background: #FFFFFF;
+    padding: 28px;
+    margin-top: 25px;
+    border-radius: 17px;
+    border: 1px solid #E9DDEC;
+    box-shadow: 0 5px 20px rgba(76, 35, 101, 0.06);
+    animation: watchlistAppear 0.3s ease;
+}
+
+.watchlist-container h2 {
+    margin-bottom: 8px;
+    color: #4C2365;
+    font-size: 23px;
+    font-weight: 800;
+}
+
+.watchlist-container h3 {
+    color: #4C2365;
+    font-size: 18px;
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+.watchlist-container p {
+    color: #786B82;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* =====================================
+   ADD STOCK FORM
+===================================== */
+
+.watchlist-form {
+    display: flex;
+    gap: 12px;
+    margin: 22px 0;
+}
+
+.watchlist-form input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 15px;
+    border: 1px solid #DFD2E8;
+    border-radius: 9px;
+    font-size: 14px;
+    color: #30223A;
+    background: #FFFFFF;
+    outline: none;
+    transition: 0.3s ease;
+}
+
+.watchlist-form input:focus {
+    border-color: #9E7EB5;
+    box-shadow: 0 0 0 4px rgba(158, 126, 181, 0.13);
+}
+
+.watchlist-form input::placeholder {
+    color: #A99AB2;
+}
+
+.watchlist-form button {
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #4C2365, #7F5D99);
+    color: white;
+    border: none;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s ease;
+    white-space: nowrap;
+}
+
+.watchlist-form button:hover {
+    background: #4C2365;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 14px rgba(76, 35, 101, 0.2);
+}
+
+/* =====================================
+   SAVED STOCK LIST
+===================================== */
+
+.watchlist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.watchlist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 18px;
+    background: #FAF7FC;
+    border: 1px solid #EDE5F1;
+    border-radius: 11px;
+    transition: all 0.25s ease;
+}
+
+.watchlist-item:hover {
+    background: #F4EFF8;
+    border-color: #C4A4DA;
+    transform: translateX(3px);
+}
+
+.watchlist-item span {
+    font-weight: 700;
+    color: #4C2365;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+}
+
+/* Remove button */
+
+.watchlist-item button {
+    padding: 8px 15px;
+    background: #F4EFF8;
+    color: #7F5D99;
+    border: 1px solid #DCCBE7;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.25s ease;
+}
+
+.watchlist-item button:hover {
+    background: #4C2365;
+    color: white;
+    border-color: #4C2365;
+}
+
+/* =====================================
+   STATUS MESSAGES
+===================================== */
+
+.watchlist-error {
+    color: #B4233A !important;
+    background: #FFF1F2;
+    border: 1px solid #F5C8CF;
+    padding: 11px 14px;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+.watchlist-success {
+    color: #27845A !important;
+    background: #EFFAF3;
+    border: 1px solid #C9EBD5;
+    padding: 11px 14px;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+/* =====================================
+   ANIMATION
+===================================== */
+
+@keyframes watchlistAppear {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =====================================
+   RESPONSIVE DESIGN
+===================================== */
+
+@media (max-width: 600px) {
+    .watchlist-container {
+        padding: 20px;
+    }
+
+    .watchlist-form {
+        flex-direction: column;
+    }
+
+    .watchlist-form input,
+    .watchlist-form button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .watchlist-item {
+        padding: 13px;
+    }
+}
+
+@media (max-width: 400px) {
+    .watchlist-container h2 {
+        font-size: 20px;
+    }
+
+    .watchlist-item span {
+        font-size: 13px;
+    }
+
+    .watchlist-item button {
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+}

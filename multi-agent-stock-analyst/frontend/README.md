@@ -1,16 +1,120 @@
-# React + Vite
+# AI-Powered Multi-Agent System for Market Analysis and Research
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Project Overview
 
-Currently, two official plugins are available:
+This project aims to develop an AI-powered system for stock market analysis and research. It helps users explore stock market information through an interactive web application.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- User Registration and Login
+- Google Sign-In
+- JWT-based Authentication
+- Stock Market Data using Yahoo Finance
+- Historical Stock Price Charts
+- Personal Watchlist Management
+- Add and Remove Stocks from Watchlist
+- User-specific Watchlists
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Technologies Used
 
-## Expanding the ESLint configuration
+**Frontend:**
+- React.js
+- Vite
+- Axios
+- Recharts
+- CSS
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+**Backend:**
+- Python
+- FastAPI
+- SQLAlchemy
+- PostgreSQL
+- JWT Authentication
+- Yahoo Finance (`yfinance`)
+
+## Project Structure
+
+```text
+project/
+├── backend/
+│   ├── app/
+│   ├── requirements.txt
+│   └── .env
+│
+└── frontend/
+    ├── src/
+    ├── package.json
+    └── package-lock.json
+```
+
+## Installation and Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd <project-folder>
+```
+
+### 2. Backend Setup
+
+```bash
+cd backend
+python -m venv aiintern
+```
+
+Activate the virtual environment:
+
+**Windows:**
+```bash
+aiintern\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start the backend server:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Backend runs at: `http://127.0.0.1:8000`
+
+API documentation: `http://127.0.0.1:8000/docs`
+
+### 3. Frontend Setup
+
+Open another terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs at: `http://localhost:5173`
+
+## Configuration
+
+Create a `.env` file inside the backend directory and configure the required database credentials, authentication settings, and Google Sign-In credentials.
+
+Do not commit your `.env` file or expose secret keys publicly.
+
+## Project Status
+
+**Module 1 – Completed**
+
+- Authentication
+- Stock Data Integration
+- Historical Stock Charts
+- Watchlist Management
+
+Further modules and AI-powered multi-agent features will be developed as the project progresses.
+
+## Internship
+
+**Infosys Springboard Internship Project**

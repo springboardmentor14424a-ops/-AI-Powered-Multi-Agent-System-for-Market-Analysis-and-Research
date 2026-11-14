@@ -2,7 +2,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-function Register() {
+function Register({ onBack }) {
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -134,6 +134,13 @@ function Register() {
                             disabled={loading}
                         >
                             {loading ? "Creating Account..." : "Create Account"}
+                        </button>
+                        <button
+                            type="button"
+                            className="back-button"
+                            onClick={onBack}
+                        >
+                            Back to Welcome
                         </button>
 
                     </form>

@@ -1,3 +1,9 @@
+import os
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -11,6 +17,9 @@ from app.security import (
     create_access_token,
     verify_access_token
 )
+
+class GoogleLoginSchema(BaseModel):
+    credential: str
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -68,14 +77,18 @@ def login_user(
         User.email == email
     ).first()
 
-    if not user or not verify_password(
+    if (
+    not user
+    or not user.password_hash
+    or not verify_password(
         user_data.password,
         user.password_hash
+    )
     ):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid email or password"
+    )
 
     token = create_access_token(user.user_id)
 
@@ -90,7 +103,85 @@ def login_user(
         }
     }
 
+@router.post("/google")
+def google_login(
+    data: GoogleLoginSchema,
+    db: Session = Depends(get_db)
+):
+    try:
+        google_user = id_token.verify_oauth2_token(
+            data.credential,
+            google_requests.Request(),
+            os.getenv("GOOGLE_CLIENT_ID")
+        )
 
+        google_sub = google_user["sub"]
+        email = google_user["email"]
+        full_name = google_user.get("name", "Google User")
+
+        if not google_user.get("email_verified", False):
+            raise HTTPException(
+                status_code=401,
+                detail="Google email is not verified"
+            )
+
+        email = email.strip().lower()
+
+        user = db.query(User).filter(
+            User.google_sub == google_sub
+        ).first()
+
+        if not user:
+            user = db.query(User).filter(
+                User.email == email
+            ).first()
+
+            if user:
+                # Link Google to an existing account only
+                # after verifying the same email.
+                if user.google_sub and user.google_sub != google_sub:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="This email is linked to another Google account"
+                    )
+
+                user.google_sub = google_sub
+
+            else:
+                user = User(
+                    full_name=full_name,
+                    email=email,
+                    google_sub=google_sub,
+                    password_hash=None
+                )
+
+                db.add(user)
+
+            db.commit()
+            db.refresh(user)
+
+        token = create_access_token(user.user_id)
+
+        return {
+            "message": "Google login successful",
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "user_id": user.user_id,
+                "full_name": user.full_name,
+                "email": user.email
+            }
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Google authentication"
+        )
+    
 # AUTHENTICATION DEPENDENCY
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),

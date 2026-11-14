@@ -365,3 +365,375 @@ body {
         min-height: auto;
     }
 }
+
+
+/* WELCOME PAGE */
+
+.welcome-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 25px;
+    background: linear-gradient(
+        135deg,
+        #dbeafe,
+        #e9d5ff,
+        #fce7f3
+    );
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-card {
+    width: 100%;
+    max-width: 520px;
+    padding: 55px 45px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 28px;
+    box-shadow: 0 25px 70px rgba(79, 70, 229, 0.15);
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-tagline {
+    color: #8054e9;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+}
+
+.welcome-card h1 {
+    color: #27234b;
+    font-size: 34px;
+    line-height: 1.35;
+    font-weight: 800;
+    margin-bottom: 15px;
+}
+
+.welcome-card h1 span {
+    color: #8054e9;
+}
+
+.welcome-description {
+    color: #77758f;
+    font-size: 14px;
+    line-height: 1.8;
+    margin-bottom: 30px;
+}
+
+.welcome-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.welcome-buttons button {
+    width: 100%;
+    height: 52px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.welcome-login-btn {
+    background: linear-gradient(135deg, #6366f1, #9333ea);
+    color: white;
+    border: none;
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.2);
+}
+
+.welcome-login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(124, 58, 237, 0.3);
+}
+
+.welcome-register-btn {
+    background: white;
+    color: #8054e9;
+    border: 1px solid #b9a5f5;
+}
+
+.welcome-register-btn:hover {
+    background: #f5f0ff;
+    transform: translateY(-2px);
+}
+
+.welcome-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #aaa5ba;
+    font-size: 12px;
+    margin: 5px 0;
+}
+
+.welcome-divider::before,
+.welcome-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: #dedbea;
+}
+
+.google-btn {
+    background: white;
+    border: 1px solid #dedbea;
+    color: #454260;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.google-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+
+.google-note {
+    font-size: 11px;
+    color: #9995aa;
+}
+
+.welcome-footer {
+    margin-top: 30px;
+    color: #9995aa;
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+@media (max-width: 500px) {
+    .welcome-card {
+        padding: 40px 25px;
+    }
+
+    .welcome-card h1 {
+        font-size: 27px;
+    }
+}
+
+.back-button {
+    width: 100%;
+    height: 48px;
+    margin-top: 12px;
+    border: 1px solid #b9a5f5;
+    border-radius: 11px;
+    background: transparent;
+    color: #8054e9;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.back-button:hover {
+    background: #f1ebff;
+    transform: translateY(-2px);
+}
+
+/* =====================================
+   GLOBAL PURPLE THEME
+===================================== */
+
+:root {
+    --primary: #4C2365;
+    --secondary: #7F5D99;
+    --accent: #9E7EB5;
+    --light-purple: #C4A4DA;
+
+    --primary-hover: #38194B;
+    --soft-purple: #F4EFF8;
+    --lavender-bg: #FAF7FC;
+    --text-dark: #30223A;
+    --text-muted: #786B82;
+    --border-color: #E7DDEC;
+    --white: #FFFFFF;
+}
+
+/* Global page background */
+
+.login-page,
+.welcome-page {
+    background: linear-gradient(
+        135deg,
+        #F4EFF8 0%,
+        #E9DDF0 50%,
+        #FAF7FC 100%
+    );
+}
+
+/* Decorative circles */
+
+.login-page::before {
+    background: linear-gradient(
+        135deg,
+        #9E7EB5,
+        #C4A4DA
+    );
+}
+
+.login-page::after {
+    background: linear-gradient(
+        135deg,
+        #C4A4DA,
+        #E9DDF0
+    );
+}
+
+/* Login and registration layout */
+
+.login-container {
+    box-shadow: 0 25px 70px rgba(76, 35, 101, 0.16);
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Left information panel */
+
+.login-visual {
+    background: linear-gradient(
+        145deg,
+        #4C2365 0%,
+        #7F5D99 55%,
+        #9E7EB5 100%
+    );
+}
+
+/* Login form */
+
+.login-form-section h2 {
+    color: var(--primary);
+}
+
+.login-subtitle {
+    color: var(--text-muted);
+}
+
+.form-group label {
+    color: var(--primary);
+}
+
+.form-group input {
+    border-color: var(--border-color);
+}
+
+.form-group input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(158, 126, 181, 0.15);
+}
+
+/* Login button */
+
+.login-button {
+    background: linear-gradient(
+        135deg,
+        #4C2365,
+        #7F5D99
+    );
+    box-shadow: 0 8px 20px rgba(76, 35, 101, 0.2);
+}
+
+.login-button:hover {
+    background: linear-gradient(
+        135deg,
+        #38194B,
+        #4C2365
+    );
+    box-shadow: 0 12px 25px rgba(76, 35, 101, 0.28);
+}
+
+/* Links */
+
+.forgot-password a,
+.login-footer a {
+    color: var(--secondary);
+}
+
+.forgot-password a:hover,
+.login-footer a:hover {
+    color: var(--primary);
+}
+
+/* Messages */
+
+.error-message {
+    color: #C24141;
+}
+
+.success-message {
+    color: #27845A;
+}
+
+/* Welcome card */
+
+.welcome-card {
+    box-shadow: 0 25px 70px rgba(76, 35, 101, 0.16);
+}
+
+.welcome-tagline {
+    color: var(--secondary);
+}
+
+.welcome-card h1 {
+    color: var(--primary);
+}
+
+.welcome-card h1 span {
+    color: var(--secondary);
+}
+
+.welcome-description {
+    color: var(--text-muted);
+}
+
+/* Welcome buttons */
+
+.welcome-login-btn {
+    background: linear-gradient(
+        135deg,
+        #4C2365,
+        #7F5D99
+    );
+    box-shadow: 0 8px 20px rgba(76, 35, 101, 0.2);
+}
+
+.welcome-login-btn:hover {
+    background: linear-gradient(
+        135deg,
+        #38194B,
+        #4C2365
+    );
+    box-shadow: 0 12px 25px rgba(76, 35, 101, 0.28);
+}
+
+.welcome-register-btn,
+.back-button {
+    color: var(--primary);
+    border-color: var(--light-purple);
+}
+
+.welcome-register-btn:hover,
+.back-button:hover {
+    background: var(--soft-purple);
+}
+
+.google-btn {
+    border-color: var(--border-color);
+}
+
+.google-btn:hover {
+    background: var(--soft-purple);
+}
+
+.welcome-divider::before,
+.welcome-divider::after {
+    background: var(--border-color);
+}
