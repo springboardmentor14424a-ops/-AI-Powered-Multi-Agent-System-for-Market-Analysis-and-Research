@@ -1,0 +1,204 @@
+MODULE 1
+User Authentication andResearch Workspace
+Student Implementation Guide
+MODULE OBJECTIVEBuild a secure user registration and login system with a personalized workspace. Users should be able to view their research history, save stocks to a watchlist, and manage preferences such as market and analysis period.
+1. User Registration
+What is it?
+Registration allows a new user to create an account on the Multi-Agent Stock Research Analyst platform.
+What should students develop?
+Create a registration page with these fields:
+Full Name
+Email Address
+Password
+Confirm Password
+How to implement it
+Build the registration form using React.js.
+When the user submits the form, send the details to the FastAPI backend.
+Validate the email address and password, and check whether the email is already registered.
+Hash the password using a secure password-hashing algorithm such as bcrypt.
+Store the user details in the PostgreSQL Users table.
+Display a successful registration message.
+Important: Never store passwords directly in the database. Store only a secure password hash.
+2. User Login
+What is it?
+Login allows registered users to securely access their accounts.
+What should students develop?
+Email Address
+Password
+Login Button
+How to implement it
+The user enters their email address and password.
+React sends the credentials to the FastAPI backend over HTTPS.
+FastAPI checks whether the email exists in the Users table.
+The backend verifies the entered password against the stored password hash.
+If the credentials are correct, the backend creates an authentication token.
+The user is allowed to access their personal dashboard. Incorrect credentials should produce a clear error message.
+3. JWT-Based Authentication
+What is JWT?
+JWT stands for JSON Web Token. It is a signed token that allows the backend to verify the identity of a logged-in user when they make requests to protected parts of the application.
+Why is it needed?
+For example, when a user opens their research history, the backend must know which account is making the request. JWT helps identify the authenticated user without requiring them to enter their password for every action.
+How to implement it
+After a successful login, FastAPI creates a JWT containing the user's ID and an expiry time. Do not put passwords or sensitive personal information in the token.
+Send the token to the React frontend.
+Store and transmit the token securely. An HTTP-only, Secure cookie is generally preferable for browser applications; protect cookie-based requests against CSRF.
+For protected API requests, the browser sends the cookie, or the frontend sends the token in the Authorization header if using a bearer-token approach.
+FastAPI verifies the token's signature and expiry before processing the request.
+If the token is missing, invalid, or expired, deny access and ask the user to sign in again.
+Typical login and authentication flow
+Step
+What happens
+1
+User enters login credentials
+2
+FastAPI verifies the credentials
+3
+FastAPI generates a signed JWT
+4
+The browser receives the token securely
+5
+User opens the dashboard or requests protected data
+6
+FastAPI verifies the token before returning the data
+4. User-Specific Research History
+What is it?
+Whenever a user researches a stock, the platform should save the research task so the user can return to it later.
+Example: a user researches Apple (AAPL), Tesla (TSLA), and Microsoft (MSFT). These activities should appear in that user's research history.
+What should students display?
+Company Name and Stock Ticker
+Market
+Analysis Period
+Research Date
+Research Status (for example, Pending, Processing, Completed, or Failed)
+Option to open the generated report
+How to implement it
+When a user starts stock research, create a new research task.
+Store the task in the Research Tasks table and associate it with the authenticated user's ID.
+As the analysis workflow runs, update the task status.
+When the agents finish, save the report and mark the task as completed. Record failures clearly if the workflow does not finish.
+Create a backend endpoint that returns only the logged-in user's research tasks.
+Display the history in the React dashboard and allow the user to open a completed report.
+Security point: Never trust a user_id sent by the browser to decide whose records to return. Derive the user identity from the verified JWT on the backend.
+5. Saved Stocks and Watchlists
+What is a watchlist?
+A watchlist is a collection of stocks that a user wants to monitor. For example, a user may save AAPL, TSLA, and MSFT so they can find and research them again without searching each time.
+What should students develop?
+Search for a company by name or ticker symbol.
+Add a stock to the watchlist.
+View all saved stocks.
+Remove a stock from the watchlist.
+Select a saved stock to start a new research task.
+How to implement it
+Create a stock search field in React.
+Use a suitable market-data API or a validated ticker list to look up the company and its ticker.
+Provide an Add to Watchlist action.
+Send the selected ticker to FastAPI. The backend should obtain the user ID from the authenticated session.
+Store the user ID and ticker in the Saved Stocks table. Prevent duplicate entries for the same user and ticker.
+Retrieve and display the logged-in user's saved stocks.
+Provide a Remove action and an option to launch research for a saved stock.
+6. User Preferences: Market and Analysis Period
+What are user preferences?
+Users may want to research stocks listed on different exchanges and examine different historical time periods. The platform should let each user select and save these preferences.
+A. Market preference
+Possible market choices include:
+NSE – National Stock Exchange of India
+BSE – BSE Ltd., India
+NASDAQ – US stock exchange
+NYSE – New York Stock Exchange
+For example, if the user selects NSE, the application should accept supported NSE-listed symbols, such as RELIANCE or TCS. Students must use the correct ticker format required by their chosen data provider.
+B. Analysis period
+Possible choices include:
+1 Month
+3 Months
+6 Months
+1 Year
+5 Years
+For example, selecting 1 Year should cause the research workflow to request approximately one year of historical price data, subject to the data provider's availability.
+How to implement preferences
+Create dropdowns or selection controls for market and analysis period.
+Load the user's existing preferences when the dashboard opens.
+Allow the user to change and save the selections.
+Store the preferences in a user preferences table or suitable columns associated with the user.
+Pass the selected market and period to the stock research workflow.
+Validate that the chosen data provider supports the market, ticker format, and requested historical period.
+7. Database Understanding – PostgreSQL
+Students must understand where application information is stored and how tables are connected. For this module, the following tables are especially relevant. The full project also uses Research Tasks, Research Reports, Agent Results, and Source Documents.
+Users table
+Column
+Purpose
+user_id
+Unique identifier for each user (primary key)
+full_name
+User's name
+email
+User's email address; should be unique
+password_hash
+Secure hash of the user's password
+created_at
+Account creation date and time
+Saved Stocks table
+Column
+Purpose
+saved_stock_id
+Unique identifier for each saved-stock record
+user_id
+Identifies the owner; foreign key to Users
+ticker
+Stock symbol, such as AAPL or TCS
+created_at
+Date and time the stock was saved
+Other useful tables
+Table
+What it stores
+Research Tasks
+User, ticker, market, requested period, status, start and completion times
+Research Reports
+Consolidated report, summary, limitations and creation time
+Agent Results
+Each agent's status, structured output and any error message
+Source Documents
+Source title, URL, publication time and retrieval time
+User Preferences
+Preferred market and default analysis period, if stored separately
+Database relationship: user_id links a user to their saved stocks and research tasks. Research reports and agent results are linked to a research task through task_id. Use primary keys, foreign keys, appropriate unique constraints, and indexes.
+8. How the Frontend and Backend Work Together
+React.js, FastAPI, and PostgreSQL have different responsibilities and communicate through API requests.
+Technology
+Responsibility in this module
+React.js
+Build registration, login, dashboard, watchlist, preferences and research-history screens
+Tailwind CSS
+Style and make the frontend responsive
+FastAPI
+Provide APIs, validate requests, handle authentication and enforce access rules
+Python
+Backend programming language
+JWT
+Represent the authenticated session for protected requests
+bcrypt / Argon2
+Securely hash passwords
+PostgreSQL
+Persist users, preferences, saved stocks and research records
+SQLAlchemy
+Connect Python application code to database tables
+Pydantic
+Validate incoming data and structure API responses
+Example request flow
+The user fills in a form or clicks an action in React.
+React sends an HTTP request to a FastAPI endpoint.
+FastAPI validates the request and verifies authentication where required.
+FastAPI reads or updates the appropriate PostgreSQL records.
+FastAPI returns a response to React.
+React updates the page to show the result.
+9. Suggested Implementation Order
+Students should build and test the module in small stages rather than attempting all features at once.
+Set up the React.js frontend and FastAPI backend.
+Connect FastAPI to PostgreSQL.
+Create the Users table and implement registration.
+Implement password hashing and login.
+Generate and verify JWT authentication tokens.
+Build the protected user dashboard.
+Create the Research History section and connect it to Research Tasks.
+Implement Saved Stocks and watchlist operations.
+Add market and analysis-period preferences.
+Test the complete registration-to-dashboard workflow, including access control.
