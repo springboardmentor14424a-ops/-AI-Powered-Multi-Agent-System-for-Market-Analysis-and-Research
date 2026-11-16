@@ -1,0 +1,13 @@
+# Environment variables and secrets
+.env
+**/.env
+
+# Python virtual environment
+backend/venv/
+
+# React dependencies
+frontend/node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
