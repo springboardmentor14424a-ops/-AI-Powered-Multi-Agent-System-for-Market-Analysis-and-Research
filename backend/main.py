@@ -79,19 +79,39 @@ def login_user(user_credentials: LoginRequest, db: Session = Depends(get_db)):
         }
     }
 
+# --- DASHBOARD & PREFERENCES ENDPOINTS ---
+
 @app.get("/dashboard")
 def get_dashboard(user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
-    """
-    This endpoint is protected. FastAPI will automatically check for a valid JWT.
-    If the token is valid, it retrieves the specific user's data.
-    """
     user = db.query(models.User).filter(models.User.user_id == user_id).first()
     
     return {
         "message": f"Welcome to your secure dashboard, {user.full_name}!",
         "user_id": user.user_id,
         "email": user.email,
+        "preferred_market": user.preferred_market or "NASDAQ",
+        "preferred_period": user.preferred_period or "1 Year",
         "status": "Authentication verified successfully"
+    }
+
+class PreferencesUpdate(BaseModel):
+    preferred_market: str
+    preferred_period: str
+
+@app.put("/preferences")
+def update_preferences(prefs: PreferencesUpdate, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    user.preferred_market = prefs.preferred_market
+    user.preferred_period = prefs.preferred_period
+    db.commit()
+    
+    return {
+        "message": "Preferences updated successfully",
+        "preferred_market": user.preferred_market,
+        "preferred_period": user.preferred_period
     }
 
 # --- WATCHLIST SCHEMAS & ENDPOINTS ---
@@ -101,12 +121,10 @@ class WatchlistCreate(BaseModel):
 
 @app.post("/watchlist")
 def add_to_watchlist(item: WatchlistCreate, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
-    # 1. Verify the user exists
     user = db.query(models.User).filter(models.User.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    # 2. Save the stock symbol to the database (convert to uppercase automatically)
     new_item = models.Watchlist(user_id=user.user_id, stock_symbol=item.stock_symbol.upper())
     db.add(new_item)
     db.commit()
@@ -122,7 +140,6 @@ def add_to_watchlist(item: WatchlistCreate, user_id: int = Depends(verify_token)
 
 @app.get("/watchlist")
 def get_watchlist(user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
-    # Retrieve all stocks matching this user's ID
     watchlist = db.query(models.Watchlist).filter(models.Watchlist.user_id == user_id).all()
     
     return {
@@ -136,15 +153,27 @@ def get_watchlist(user_id: int = Depends(verify_token), db: Session = Depends(ge
         ]
     }
 
+@app.delete("/watchlist/{item_id}")
+def remove_from_watchlist(item_id: int, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
+    item = db.query(models.Watchlist).filter(
+        models.Watchlist.id == item_id, 
+        models.Watchlist.user_id == user_id
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Stock not found in your watchlist")
+        
+    db.delete(item)
+    db.commit()
+    
+    return {"message": f"Successfully removed {item.stock_symbol} from watchlist"}
+
 # --- YAHOO FINANCE ENDPOINT ---
 
 @app.get("/stock/{symbol}")
 def get_stock_data(symbol: str, user_id: int = Depends(verify_token)):
     try:
-        # Fetch data from Yahoo Finance
         ticker = yf.Ticker(symbol)
-        
-        # Get the latest daily price history
         hist = ticker.history(period="1d")
         
         if hist.empty:
@@ -152,7 +181,6 @@ def get_stock_data(symbol: str, user_id: int = Depends(verify_token)):
             
         current_price = hist['Close'].iloc[-1]
         
-        # Attempt to get the company name (fallback to symbol if not found)
         info = ticker.info
         company_name = info.get("shortName", symbol)
         currency = info.get("currency", "USD")
@@ -166,20 +194,57 @@ def get_stock_data(symbol: str, user_id: int = Depends(verify_token)):
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error fetching data from Yahoo Finance: {str(e)}")
-# --- DELETE WATCHLIST ITEM ---
+# --- RESEARCH HISTORY ENDPOINTS ---
 
-@app.delete("/watchlist/{item_id}")
-def remove_from_watchlist(item_id: int, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
-    # Find the stock securely by matching both the item_id AND the user_id
-    item = db.query(models.Watchlist).filter(
-        models.Watchlist.id == item_id, 
-        models.Watchlist.user_id == user_id
-    ).first()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Stock not found in your watchlist")
+class ResearchCreate(BaseModel):
+    ticker: str
+
+@app.post("/research/start")
+def start_research_task(request: ResearchCreate, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
+    # 1. Get the user to read their saved preferences
+    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
         
-    db.delete(item)
-    db.commit()
+    # 2. Create a new task using the requested ticker and the user's saved preferences
+    new_task = models.ResearchTask(
+        user_id=user.user_id,
+        ticker=request.ticker.upper(),
+        market=user.preferred_market or "NASDAQ",
+        requested_period=user.preferred_period or "1 Year",
+        status="Pending"
+    )
     
-    return {"message": f"Successfully removed {item.stock_symbol} from watchlist"}    
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    
+    return {
+        "message": f"Research task started for {new_task.ticker}",
+        "task": {
+            "task_id": new_task.task_id,
+            "ticker": new_task.ticker,
+            "status": new_task.status
+        }
+    }
+
+@app.get("/research/history")
+def get_research_history(user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
+    # Fetch all tasks for this user, newest first
+    tasks = db.query(models.ResearchTask).filter(
+        models.ResearchTask.user_id == user_id
+    ).order_by(models.ResearchTask.created_at.desc()).all()
+    
+    return {
+        "history": [
+            {
+                "task_id": task.task_id,
+                "ticker": task.ticker,
+                "market": task.market,
+                "requested_period": task.requested_period,
+                "status": task.status,
+                "created_at": task.created_at
+            }
+            for task in tasks
+        ]
+    }    
