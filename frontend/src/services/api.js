@@ -110,3 +110,36 @@ export const stocksApi = {
     request(`/stocks/chart/${encodeURIComponent(ticker)}?period=${encodeURIComponent(period || '6 Months')}&market=${encodeURIComponent(market || 'NSE')}`),
 };
 
+export const marketApi = {
+  search: (query, market) => {
+    let url = `/market/search?query=${encodeURIComponent(query || '')}`;
+    if (market && market !== 'ALL') {
+      url += `&market=${encodeURIComponent(market)}`;
+    }
+    return request(url);
+  },
+  getHistoricalOHLCV: (ticker, market, period = '6 Months', interval = '1d') =>
+    request(`/market/historical/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market || 'NSE')}&period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`),
+  getProfile: (ticker, market) =>
+    request(`/market/profile/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market || 'NSE')}`),
+  getFinancials: (ticker, market, periodType = 'annual') =>
+    request(`/market/financials/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market || 'NSE')}&period_type=${encodeURIComponent(periodType)}`),
+  validateData: (ticker, market, records) =>
+    request('/market/validate', {
+      method: 'POST',
+      body: JSON.stringify({ ticker, market: market || 'NSE', records }),
+    }),
+  getQuote: (ticker, market) =>
+    request(`/market/quote/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market || 'NSE')}`),
+  getStatus: () => request('/market/status'),
+  updateKeys: (alphaVantageKey, twelveDataKey) =>
+    request('/market/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        alpha_vantage_key: alphaVantageKey,
+        twelve_data_key: twelveDataKey,
+      }),
+    }),
+};
+
+

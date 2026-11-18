@@ -134,3 +134,107 @@ class UserPreferenceResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# =========================================================
+# MODULE 2: STOCK SEARCH & MARKET DATA COLLECTION SCHEMAS
+# =========================================================
+
+class CompanySearchResult(BaseModel):
+    ticker: str
+    name: str
+    market: str
+    sector: Optional[str] = None
+    currency: Optional[str] = "USD"
+    base_price: Optional[float] = None
+    country: Optional[str] = None
+
+class OHLCVPoint(BaseModel):
+    date: str
+    display_date: Optional[str] = None
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+
+class ValidationReport(BaseModel):
+    is_valid: bool
+    quality_score: float
+    total_records: int
+    clean_records: int
+    missing_values_handled: int
+    duplicate_dates_removed: int
+    inconsistencies_corrected: int
+    issues_log: List[str]
+    validated_at: str
+
+class HistoricalOHLCVResponse(BaseModel):
+    ticker: str
+    market: str
+    period: str
+    interval: str
+    currency: str
+    current_price: float
+    data_source: str
+    retrieval_timestamp: str
+    points: List[OHLCVPoint]
+    validation: ValidationReport
+
+class CompanyProfileResponse(BaseModel):
+    ticker: str
+    name: str
+    market: str
+    sector: Optional[str] = None
+    industry: Optional[str] = None
+    ceo: Optional[str] = None
+    employees: Optional[int] = None
+    headquarters: Optional[str] = None
+    description: Optional[str] = None
+    market_cap: Optional[str] = None
+    pe_ratio: Optional[float] = None
+    week_52_high: Optional[float] = None
+    week_52_low: Optional[float] = None
+    dividend_yield: Optional[float] = None
+    beta: Optional[float] = None
+    currency: str = "USD"
+    data_source: str
+    retrieval_timestamp: str
+
+class FinancialStatementsResponse(BaseModel):
+    ticker: str
+    market: str
+    period_type: str  # annual or quarterly
+    currency: str
+    data_source: str
+    retrieval_timestamp: str
+    income_statement: List[dict]
+    balance_sheet: List[dict]
+    cash_flow: List[dict]
+    ratios: dict
+
+class RawDataValidationRequest(BaseModel):
+    ticker: str
+    market: str = "NSE"
+    records: List[dict]
+
+class RawDataValidationResponse(BaseModel):
+    ticker: str
+    market: str
+    data_source: str
+    clean_records: List[OHLCVPoint]
+    validation_report: ValidationReport
+
+class MarketProviderStatus(BaseModel):
+    alpha_vantage_configured: bool
+    alpha_vantage_masked_key: Optional[str] = None
+    twelve_data_configured: bool
+    twelve_data_masked_key: Optional[str] = None
+    active_providers: List[str]
+    supported_markets: List[str]
+    cache_engine: str
+
+class ProviderKeyUpdate(BaseModel):
+    alpha_vantage_key: Optional[str] = None
+    twelve_data_key: Optional[str] = None
+

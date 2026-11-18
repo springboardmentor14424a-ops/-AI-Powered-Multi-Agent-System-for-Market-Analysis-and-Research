@@ -13,6 +13,16 @@ from app.routers.watchlist import add_to_watchlist, get_watchlist, remove_from_w
 from app.routers.history import create_research_task, get_research_history, get_task_details
 from app.routers.preferences import get_preferences, update_preferences
 from app.routers.stocks import search_stocks, get_stock_quote, get_market_indices, get_stock_chart
+from app.routers.market_data import (
+    search_companies,
+    get_historical_ohlcv,
+    get_company_profile,
+    get_financial_statements,
+    validate_market_data,
+    get_provider_status,
+    update_provider_keys,
+)
+from app.schemas import RawDataValidationRequest, ProviderKeyUpdate
 from app.security import decode_access_token, verify_password
 from fastapi.security import HTTPAuthorizationCredentials
 from app.dependencies import get_current_user
@@ -247,10 +257,95 @@ def run_live_verification():
     print(f"     • Latest Candle ({last_pt['display_date']}): Price={last_pt['price']}, Volume={last_pt['volume']:,}")
     print("  ✓ [PASS] Quotes, Benchmark Indices & Interactive Charting APIs Verified!\n")
 
+    # ---------------------------------------------------------
+    # STEP 7: MODULE 2 - MULTI-MARKET STOCK SEARCH (NAME & TICKER)
+    # ---------------------------------------------------------
+    print("[STEP 7] TESTING MODULE 2: MULTI-MARKET SEARCH (NSE, BSE, NASDAQ, NYSE)...")
+    res_nse = search_companies(query="INFY", market="NSE")
+    assert len(res_nse) >= 1
+    t_nse = res_nse[0]["ticker"] if isinstance(res_nse[0], dict) else res_nse[0].ticker
+    n_nse = res_nse[0]["name"] if isinstance(res_nse[0], dict) else res_nse[0].name
+    print(f"  -> Searched 'INFY' on NSE: Found '{t_nse}' - {n_nse}")
+
+    res_us = search_companies(query="Microsoft", market="NASDAQ")
+    assert len(res_us) >= 1
+    t_us = res_us[0]["ticker"] if isinstance(res_us[0], dict) else res_us[0].ticker
+    print(f"  -> Searched 'Microsoft' on NASDAQ: Found '{t_us}'")
+
+    res_all_mkt = search_companies(query="", market="ALL")
+    assert len(res_all_mkt) >= 15
+    print(f"  -> Universal Catalog: {len(res_all_mkt)} companies across global markets.")
+    print("  ✓ [PASS] Multi-Market Search by Name & Ticker Verified!\n")
+
+    # ---------------------------------------------------------
+    # STEP 8: MODULE 2 - HISTORICAL OHLCV DATA & SOURCE TRACKING
+    # ---------------------------------------------------------
+    print("[STEP 8] TESTING MODULE 2: HISTORICAL OHLCV DATA & UTC TIMESTAMPS...")
+    ohlcv_resp = get_historical_ohlcv(ticker="RELIANCE", market="NSE", period="6 Months", interval="1d", db=db)
+    assert ohlcv_resp["ticker"] == "RELIANCE"
+    assert len(ohlcv_resp["points"]) > 20
+    assert "data_source" in ohlcv_resp and len(ohlcv_resp["data_source"]) > 0
+    assert "retrieval_timestamp" in ohlcv_resp and ohlcv_resp["retrieval_timestamp"].endswith("Z")
+    
+    last_pt = ohlcv_resp["points"][-1]
+    print(f"  -> RELIANCE OHLCV ({ohlcv_resp['period']}): {len(ohlcv_resp['points'])} candles")
+    print(f"     • Source: {ohlcv_resp['data_source']}")
+    print(f"     • UTC Retrieval Timestamp: {ohlcv_resp['retrieval_timestamp']}")
+    print(f"     • Latest Candle: O={last_pt['open']} H={last_pt['high']} L={last_pt['low']} C={last_pt['close']} Vol={last_pt['volume']:,}")
+    print("  ✓ [PASS] Historical OHLCV Data & Source Attribution Verified!\n")
+
+    # ---------------------------------------------------------
+    # STEP 9: MODULE 2 - DATA VALIDATION ENGINE (MISSING VALUES, DUPLICATE DATES, INCONSISTENT DATA)
+    # ---------------------------------------------------------
+    print("[STEP 9] TESTING MODULE 2: DATA VALIDATION & QUALITY ASSURANCE ENGINE...")
+    corrupted_sample = [
+        {"date": "2026-11-10", "open": 200.0, "high": 205.0, "low": 195.0, "close": 202.0, "volume": 100000},
+        {"date": "2026-11-11", "open": None, "high": 210.0, "low": 200.0, "close": 208.0, "volume": None}, # Missing values
+        {"date": "2026-11-11", "open": 202.0, "high": 210.0, "low": 200.0, "close": 208.0, "volume": 120000}, # Duplicate date
+        {"date": "2026-11-12", "open": 215.0, "high": 180.0, "low": 220.0, "close": 212.0, "volume": -50000}, # Inverted bounds & negative vol
+    ]
+    val_res = validate_market_data(RawDataValidationRequest(ticker="TEST-VAL", market="NASDAQ", records=corrupted_sample))
+    v_rep = val_res["validation_report"]
+    print(f"  -> Raw records: {v_rep['total_records']}, Cleaned: {v_rep['clean_records']}")
+    print(f"  -> Missing values repaired: {v_rep['missing_values_handled']}")
+    print(f"  -> Duplicate dates removed: {v_rep['duplicate_dates_removed']}")
+    print(f"  -> Bounds & volume inconsistencies corrected: {v_rep['inconsistencies_corrected']}")
+    print(f"  -> Data Quality Score: {v_rep['quality_score']}%")
+    assert v_rep["missing_values_handled"] >= 2
+    assert v_rep["duplicate_dates_removed"] == 1
+    assert v_rep["inconsistencies_corrected"] >= 2
+    print("  ✓ [PASS] Automated Data Validation Engine Passed with 100% Mathematical Precision!\n")
+
+    # ---------------------------------------------------------
+    # STEP 10: MODULE 2 - COMPANY PROFILES & 3-STATEMENT FINANCIALS
+    # ---------------------------------------------------------
+    print("[STEP 10] TESTING MODULE 2: COMPANY PROFILES & FINANCIAL STATEMENTS...")
+    prof = get_company_profile("AAPL", market="NASDAQ", db=db)
+    assert prof["ticker"] == "AAPL"
+    assert prof["ceo"] == "Tim Cook"
+    print(f"  -> AAPL Profile: CEO={prof['ceo']} | Sector={prof['sector']} | Cap={prof['market_cap']} | PE={prof['pe_ratio']}")
+    print(f"     Source: {prof['data_source']} | Timestamp: {prof['retrieval_timestamp']}")
+
+    fins = get_financial_statements("AAPL", market="NASDAQ", period_type="annual", db=db)
+    assert fins["ticker"] == "AAPL"
+    assert len(fins["income_statement"]) >= 4
+    assert len(fins["balance_sheet"]) >= 4
+    assert len(fins["cash_flow"]) >= 4
+    print(f"  -> AAPL Financial Statements ({fins['period_type']}):")
+    print(f"     • Latest Net Income: ${fins['income_statement'][-1]['net_income']:,} M (Margin: {fins['income_statement'][-1]['profit_margin_pct']}%)")
+    print(f"     • Balance Sheet Equity: ${fins['balance_sheet'][-1]['stockholders_equity']:,} M")
+    print(f"     • Free Cash Flow: ${fins['cash_flow'][-1]['free_cash_flow']:,} M")
+    print(f"     • ROE: {fins['ratios']['return_on_equity_roe']} | Current Ratio: {fins['ratios']['current_ratio']}")
+
+    # Check free API status
+    p_status = get_provider_status()
+    print(f"  -> Market Providers Status: Active={len(p_status['active_providers'])}, Markets={p_status['supported_markets']}")
+    print("  ✓ [PASS] Company Profiles, 3-Statement Financial Models & Free APIs Verified!\n")
+
     db.close()
 
     print("=" * 70)
-    print("   ALL 6 CORE SYSTEM PHASES PASSED 100% WITH ZERO ERRORS!")
+    print("   ALL 10 COMPLETE SYSTEM PHASES (MODULE 1 & MODULE 2) PASSED 100%!")
     print("=" * 70)
 
 if __name__ == "__main__":

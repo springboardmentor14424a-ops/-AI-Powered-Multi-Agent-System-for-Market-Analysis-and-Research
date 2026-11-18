@@ -5,17 +5,19 @@ import {
   Layers, 
   History as HistoryIcon, 
   Sliders, 
-  Database
+  Database,
+  BarChart2
 } from 'lucide-react';
 import WatchlistComponent from './WatchlistComponent';
 import HistoryComponent from './HistoryComponent';
 import PreferencesComponent from './PreferencesComponent';
+import MarketDataWorkspace from './MarketDataWorkspace';
 import TaskReportModal from './TaskReportModal';
 import LaunchTaskModal from './LaunchTaskModal';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('workspace'); // 'workspace' | 'history' | 'preferences'
+  const [activeTab, setActiveTab] = useState('market_data'); // 'market_data' | 'workspace' | 'history' | 'preferences'
   const [currentMarket, setCurrentMarket] = useState('NSE');
   const [currentPeriod, setCurrentPeriod] = useState('6 Months');
   const [selectedReport, setSelectedReport] = useState(null);
@@ -92,10 +94,22 @@ export default function Dashboard() {
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex items-center space-x-2 border-b border-[#E9E8F8] pb-2">
+      <div className="flex items-center space-x-2 border-b border-[#E9E8F8] pb-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('market_data')}
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap ${
+            activeTab === 'market_data'
+              ? 'bg-white text-slate-900 shadow-md shadow-[#8DB9F0]/15 border border-[#d7d4f2]'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <BarChart2 className="w-4 h-4 text-[#3575cb]" />
+          <span>Market Data & Stock Search</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('workspace')}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap ${
             activeTab === 'workspace'
               ? 'bg-white text-slate-900 shadow-md shadow-[#8DB9F0]/15 border border-[#d7d4f2]'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -107,7 +121,7 @@ export default function Dashboard() {
 
         <button
           onClick={() => setActiveTab('history')}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap ${
             activeTab === 'history'
               ? 'bg-white text-slate-900 shadow-md shadow-[#8DB9F0]/15 border border-[#d7d4f2]'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -119,7 +133,7 @@ export default function Dashboard() {
 
         <button
           onClick={() => setActiveTab('preferences')}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap ${
             activeTab === 'preferences'
               ? 'bg-white text-slate-900 shadow-md shadow-[#8DB9F0]/15 border border-[#d7d4f2]'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -132,6 +146,10 @@ export default function Dashboard() {
 
       {/* Tab Panels */}
       <div>
+        {activeTab === 'market_data' && (
+          <MarketDataWorkspace onLaunchTask={(ticker) => handleOpenLaunchModal(ticker)} />
+        )}
+
         {activeTab === 'workspace' && (
           <div className="space-y-8">
             <WatchlistComponent 

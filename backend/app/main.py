@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
-from app.routers import auth, watchlist, history, preferences, stocks
+from app.routers import auth, watchlist, history, preferences, stocks, market_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stock_research.main")
@@ -33,8 +33,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="Backend API for Multi-Agent Stock Research Analyst platform (Module 1)",
-    version="1.0.0",
+    description="Backend API for Multi-Agent Stock Research Analyst Platform (Module 1: Auth & Workspace, Module 2: Stock Search & Market Data Collection)",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -53,15 +53,19 @@ app.include_router(watchlist.router, prefix=settings.API_V1_STR)
 app.include_router(history.router, prefix=settings.API_V1_STR)
 app.include_router(preferences.router, prefix=settings.API_V1_STR)
 app.include_router(stocks.router, prefix=settings.API_V1_STR)
+app.include_router(market_data.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
     return {
         "status": "online",
         "service": settings.PROJECT_NAME,
-        "module": "Module 1 - User Authentication and Research Workspace",
+        "modules": [
+            "Module 1: User Authentication & Research Workspace",
+            "Module 2: Stock Search & Market Data Collection"
+        ],
         "docs_url": "/docs",
-        "version": "1.0.0"
+        "version": "2.0.0"
     }
 
 @app.get("/health")
