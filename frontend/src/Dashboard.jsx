@@ -5,14 +5,31 @@ function Dashboard() {
   const [data, setData] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [stockDetails, setStockDetails] = useState({});
+  const [researchHistory, setResearchHistory] = useState([]);
   const [newStock, setNewStock] = useState('');
-  const [error, setError] = useState('');
+  
+  const [preferredMarket, setPreferredMarket] = useState('NASDAQ');
+  const [preferredPeriod, setPreferredPeriod] = useState('1 Year');
+  
   const navigate = useNavigate();
+
+  const fetchHistory = async (token) => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/research/history', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setResearchHistory(result.history);
+      }
+    } catch (err) {
+      console.error("Failed to fetch history");
+    }
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       const token = localStorage.getItem('token');
-      
       if (!token) {
         navigate('/'); 
         return;
@@ -26,6 +43,8 @@ function Dashboard() {
         if (userResponse.ok) {
           const result = await userResponse.json();
           setData(result);
+          setPreferredMarket(result.preferred_market);
+          setPreferredPeriod(result.preferred_period);
         } else {
           throw new Error('Session expired.');
         }
@@ -37,15 +56,17 @@ function Dashboard() {
         if (watchResponse.ok) {
           const watchResult = await watchResponse.json();
           setWatchlist(watchResult.watchlist);
-          
-          watchResult.watchlist.forEach(async (item) => {
+          watchResult.watchlist.forEach((item) => {
             fetchLivePrice(item.stock_symbol, token);
           });
         }
+
+        // Fetch Research History
+        fetchHistory(token);
+
       } catch (err) {
-        setError('Session expired. Please log in again.');
         localStorage.removeItem('token');
-        setTimeout(() => navigate('/'), 2000);
+        navigate('/');
       }
     };
 
@@ -59,10 +80,7 @@ function Dashboard() {
       });
       if (response.ok) {
         const result = await response.json();
-        setStockDetails(prev => ({
-          ...prev,
-          [symbol]: result
-        }));
+        setStockDetails(prev => ({ ...prev, [symbol]: result }));
       }
     } catch (err) {
       console.error(`Failed to fetch data for ${symbol}`);
@@ -96,15 +114,12 @@ function Dashboard() {
         setWatchlist([...watchlist, result.item]);
         setNewStock('');
         fetchLivePrice(symbolToAdd, token);
-      } else {
-        alert("Failed to add stock. Please try again.");
       }
     } catch (err) {
       alert("Error connecting to the server.");
     }
   };
 
-  // NEW: Delete Stock Function
   const handleDeleteStock = async (itemId) => {
     const token = localStorage.getItem('token');
     try {
@@ -114,10 +129,53 @@ function Dashboard() {
       });
 
       if (response.ok) {
-        // Remove the stock from the React UI immediately
         setWatchlist(watchlist.filter(item => item.id !== itemId));
+      }
+    } catch (err) {
+      alert("Error connecting to the server.");
+    }
+  };
+
+  const handlePreferenceChange = async (field, value) => {
+    if (field === 'market') setPreferredMarket(value);
+    if (field === 'period') setPreferredPeriod(value);
+
+    const token = localStorage.getItem('token');
+    try {
+      await fetch('http://127.0.0.1:8000/preferences', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          preferred_market: field === 'market' ? value : preferredMarket,
+          preferred_period: field === 'period' ? value : preferredPeriod
+        })
+      });
+    } catch (err) {
+      console.error("Failed to save preferences");
+    }
+  };
+
+  // NEW: Launch Research Function
+  const handleLaunchResearch = async (ticker) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('http://127.0.0.1:8000/research/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ticker: ticker })
+      });
+
+      if (response.ok) {
+        alert(`Research started for ${ticker}!`);
+        fetchHistory(token); // Instantly refresh the history table
       } else {
-        alert("Failed to delete stock.");
+        alert("Failed to start research.");
       }
     } catch (err) {
       alert("Error connecting to the server.");
@@ -130,7 +188,7 @@ function Dashboard() {
       fontFamily: '"Inter", "Segoe UI", sans-serif', padding: '40px 20px'
     }}>
       <div style={{
-        maxWidth: '900px', margin: '0 auto', backgroundColor: 'white',
+        maxWidth: '1000px', margin: '0 auto', backgroundColor: 'white',
         borderRadius: '12px', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)', overflow: 'hidden'
       }}>
         
@@ -156,13 +214,13 @@ function Dashboard() {
         {/* Content Section */}
         <div style={{ padding: '30px', display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
           
-          {/* Left Column: Account Info */}
+          {/* Left Column: Account & Preferences */}
           <div style={{ flex: '1', minWidth: '250px' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
               Account Details
             </h3>
             {data ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '30px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#6b7280', fontSize: '14px' }}>User</span>
                   <span style={{ color: '#111827', fontWeight: '500' }}>{data.full_name || data.email.split('@')[0]}</span>
@@ -175,6 +233,40 @@ function Dashboard() {
                 </div>
               </div>
             ) : <span style={{ color: '#6b7280' }}>Loading...</span>}
+
+            <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
+              Research Preferences
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ color: '#6b7280', fontSize: '13px', fontWeight: '500' }}>Default Market</label>
+                <select 
+                  value={preferredMarket} 
+                  onChange={(e) => handlePreferenceChange('market', e.target.value)}
+                  style={{ padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px', outline: 'none' }}
+                >
+                  <option value="NSE">NSE (India)</option>
+                  <option value="BSE">BSE (India)</option>
+                  <option value="NASDAQ">NASDAQ (US)</option>
+                  <option value="NYSE">NYSE (US)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ color: '#6b7280', fontSize: '13px', fontWeight: '500' }}>Analysis Period</label>
+                <select 
+                  value={preferredPeriod} 
+                  onChange={(e) => handlePreferenceChange('period', e.target.value)}
+                  style={{ padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px', outline: 'none' }}
+                >
+                  <option value="1 Month">1 Month</option>
+                  <option value="3 Months">3 Months</option>
+                  <option value="6 Months">6 Months</option>
+                  <option value="1 Year">1 Year</option>
+                  <option value="5 Years">5 Years</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Right Column: Watchlist */}
@@ -186,7 +278,7 @@ function Dashboard() {
             <form onSubmit={handleAddStock} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               <input 
                 type="text" 
-                placeholder="e.g. AAPL, RELIANCE.NS, TSLA" 
+                placeholder="e.g. AAPL, RELIANCE.NS" 
                 value={newStock}
                 onChange={(e) => setNewStock(e.target.value.toUpperCase())}
                 style={{ 
@@ -223,17 +315,27 @@ function Dashboard() {
                         <div style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
                           {liveData ? liveData.company_name : 'Loading data...'}
                         </div>
-                        {/* NEW: Remove Button */}
-                        <button 
-                          onClick={() => handleDeleteStock(item.id)}
-                          style={{
-                            background: 'none', border: 'none', color: '#ef4444', 
-                            fontSize: '12px', padding: 0, marginTop: '8px', 
-                            cursor: 'pointer', textDecoration: 'underline'
-                          }}
-                        >
-                          Remove
-                        </button>
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                          {/* NEW: Launch Research Button */}
+                          <button 
+                            onClick={() => handleLaunchResearch(item.stock_symbol)}
+                            style={{
+                              background: 'none', border: 'none', color: '#2563eb', 
+                              fontSize: '12px', padding: 0, cursor: 'pointer', fontWeight: '600'
+                            }}
+                          >
+                            Launch Research
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteStock(item.id)}
+                            style={{
+                              background: 'none', border: 'none', color: '#ef4444', 
+                              fontSize: '12px', padding: 0, cursor: 'pointer', textDecoration: 'underline'
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                       
                       <div style={{ textAlign: 'right' }}>
@@ -254,6 +356,51 @@ function Dashboard() {
                 </div>
               )}
             </div>
+          </div>
+          
+          {/* NEW: Research History Section */}
+          <div style={{ width: '100%', marginTop: '10px' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
+              Research History
+            </h3>
+            
+            {researchHistory.length > 0 ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f9fafb', color: '#4b5563', borderBottom: '2px solid #e5e7eb' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: '600' }}>Ticker</th>
+                      <th style={{ padding: '12px 16px', fontWeight: '600' }}>Market</th>
+                      <th style={{ padding: '12px 16px', fontWeight: '600' }}>Period</th>
+                      <th style={{ padding: '12px 16px', fontWeight: '600' }}>Date</th>
+                      <th style={{ padding: '12px 16px', fontWeight: '600' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {researchHistory.map((task) => (
+                      <tr key={task.task_id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: '500', color: '#111827' }}>{task.ticker}</td>
+                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{task.market}</td>
+                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{task.requested_period}</td>
+                        <td style={{ padding: '12px 16px', color: '#6b7280' }}>{new Date(task.created_at).toLocaleDateString()}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ 
+                            backgroundColor: '#fef3c7', color: '#d97706', 
+                            padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' 
+                          }}>
+                            {task.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ color: '#6b7280', fontSize: '14px', fontStyle: 'italic', backgroundColor: '#f9fafb', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                No research tasks yet. Click "Launch Research" on a saved stock to begin.
+              </div>
+            )}
           </div>
 
         </div>
