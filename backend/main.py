@@ -166,3 +166,20 @@ def get_stock_data(symbol: str, user_id: int = Depends(verify_token)):
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error fetching data from Yahoo Finance: {str(e)}")
+# --- DELETE WATCHLIST ITEM ---
+
+@app.delete("/watchlist/{item_id}")
+def remove_from_watchlist(item_id: int, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
+    # Find the stock securely by matching both the item_id AND the user_id
+    item = db.query(models.Watchlist).filter(
+        models.Watchlist.id == item_id, 
+        models.Watchlist.user_id == user_id
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Stock not found in your watchlist")
+        
+    db.delete(item)
+    db.commit()
+    
+    return {"message": f"Successfully removed {item.stock_symbol} from watchlist"}    
