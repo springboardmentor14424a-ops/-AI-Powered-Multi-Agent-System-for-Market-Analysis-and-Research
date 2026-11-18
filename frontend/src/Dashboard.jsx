@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 function Dashboard() {
   const [data, setData] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
+  const [stockDetails, setStockDetails] = useState({});
   const [newStock, setNewStock] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -18,7 +19,6 @@ function Dashboard() {
       }
 
       try {
-        // 1. Fetch secure user details
         const userResponse = await fetch('http://127.0.0.1:8000/dashboard', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -30,7 +30,6 @@ function Dashboard() {
           throw new Error('Session expired.');
         }
 
-        // 2. Fetch the user's saved watchlist
         const watchResponse = await fetch('http://127.0.0.1:8000/watchlist', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -38,8 +37,11 @@ function Dashboard() {
         if (watchResponse.ok) {
           const watchResult = await watchResponse.json();
           setWatchlist(watchResult.watchlist);
+          
+          watchResult.watchlist.forEach(async (item) => {
+            fetchLivePrice(item.stock_symbol, token);
+          });
         }
-
       } catch (err) {
         setError('Session expired. Please log in again.');
         localStorage.removeItem('token');
@@ -49,6 +51,23 @@ function Dashboard() {
 
     fetchDashboardData();
   }, [navigate]);
+
+  const fetchLivePrice = async (symbol, token) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/stock/${symbol}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setStockDetails(prev => ({
+          ...prev,
+          [symbol]: result
+        }));
+      }
+    } catch (err) {
+      console.error(`Failed to fetch data for ${symbol}`);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -60,6 +79,8 @@ function Dashboard() {
     if (!newStock.trim()) return;
 
     const token = localStorage.getItem('token');
+    const symbolToAdd = newStock.trim().toUpperCase();
+
     try {
       const response = await fetch('http://127.0.0.1:8000/watchlist', {
         method: 'POST',
@@ -67,14 +88,14 @@ function Dashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ stock_symbol: newStock.trim() })
+        body: JSON.stringify({ stock_symbol: symbolToAdd })
       });
 
       if (response.ok) {
         const result = await response.json();
-        // Update the UI immediately with the newly saved stock
         setWatchlist([...watchlist, result.item]);
-        setNewStock(''); // Clear the input field
+        setNewStock('');
+        fetchLivePrice(symbolToAdd, token);
       } else {
         alert("Failed to add stock. Please try again.");
       }
@@ -83,29 +104,40 @@ function Dashboard() {
     }
   };
 
+  // NEW: Delete Stock Function
+  const handleDeleteStock = async (itemId) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/watchlist/${itemId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        // Remove the stock from the React UI immediately
+        setWatchlist(watchlist.filter(item => item.id !== itemId));
+      } else {
+        alert("Failed to delete stock.");
+      }
+    } catch (err) {
+      alert("Error connecting to the server.");
+    }
+  };
+
   return (
     <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f3f4f6',
-      fontFamily: '"Inter", "Segoe UI", sans-serif',
-      padding: '40px 20px'
+      minHeight: '100vh', backgroundColor: '#f3f4f6',
+      fontFamily: '"Inter", "Segoe UI", sans-serif', padding: '40px 20px'
     }}>
       <div style={{
-        maxWidth: '800px', // Widened slightly to fit the new layout
-        margin: '0 auto',
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)',
-        overflow: 'hidden'
+        maxWidth: '900px', margin: '0 auto', backgroundColor: 'white',
+        borderRadius: '12px', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)', overflow: 'hidden'
       }}>
         
         {/* Header Section */}
         <div style={{
-          backgroundColor: '#1f2937',
-          padding: '20px 30px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
+          backgroundColor: '#1f2937', padding: '20px 30px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
           <h2 style={{ margin: 0, color: 'white', fontSize: '20px', fontWeight: '600' }}>
             Analyst Dashboard
@@ -113,10 +145,8 @@ function Dashboard() {
           <button 
             onClick={handleLogout}
             style={{
-              backgroundColor: '#ef4444',
-              color: 'white', border: 'none', padding: '8px 16px',
-              borderRadius: '6px', fontSize: '14px', fontWeight: '500',
-              cursor: 'pointer'
+              backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 16px',
+              borderRadius: '6px', fontSize: '14px', fontWeight: '500', cursor: 'pointer'
             }}
           >
             Log Out
@@ -148,15 +178,15 @@ function Dashboard() {
           </div>
 
           {/* Right Column: Watchlist */}
-          <div style={{ flex: '2', minWidth: '300px' }}>
+          <div style={{ flex: '2', minWidth: '350px' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
-              My Watchlist
+              My Watchlist & Live Markets
             </h3>
             
             <form onSubmit={handleAddStock} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               <input 
                 type="text" 
-                placeholder="e.g. AAPL, RELIANCE.NS" 
+                placeholder="e.g. AAPL, RELIANCE.NS, TSLA" 
                 value={newStock}
                 onChange={(e) => setNewStock(e.target.value.toUpperCase())}
                 style={{ 
@@ -171,21 +201,53 @@ function Dashboard() {
                   padding: '10px 20px', borderRadius: '6px', fontWeight: '500', cursor: 'pointer' 
                 }}
               >
-                Add
+                Add Stock
               </button>
             </form>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {watchlist.length > 0 ? (
-                watchlist.map((item) => (
-                  <div key={item.id} style={{ 
-                    backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', 
-                    padding: '12px 16px', borderRadius: '8px', 
-                    display: 'flex', alignItems: 'center', gap: '10px'
-                  }}>
-                    <span style={{ fontWeight: '600', color: '#0f172a' }}>{item.stock_symbol}</span>
-                  </div>
-                ))
+                watchlist.map((item) => {
+                  const liveData = stockDetails[item.stock_symbol];
+                  
+                  return (
+                    <div key={item.id} style={{ 
+                      backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', 
+                      padding: '16px', borderRadius: '8px', 
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '16px' }}>
+                          {item.stock_symbol}
+                        </div>
+                        <div style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
+                          {liveData ? liveData.company_name : 'Loading data...'}
+                        </div>
+                        {/* NEW: Remove Button */}
+                        <button 
+                          onClick={() => handleDeleteStock(item.id)}
+                          style={{
+                            background: 'none', border: 'none', color: '#ef4444', 
+                            fontSize: '12px', padding: 0, marginTop: '8px', 
+                            cursor: 'pointer', textDecoration: 'underline'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      
+                      <div style={{ textAlign: 'right' }}>
+                        {liveData ? (
+                          <div style={{ fontWeight: '600', color: '#10b981', fontSize: '18px' }}>
+                            {liveData.current_price.toFixed(2)} <span style={{ fontSize: '12px', color: '#64748b' }}>{liveData.currency}</span>
+                          </div>
+                        ) : (
+                          <div style={{ color: '#94a3b8', fontSize: '14px' }}>--</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
                 <div style={{ color: '#6b7280', fontSize: '14px', fontStyle: 'italic' }}>
                   No stocks in your watchlist yet.
