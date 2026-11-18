@@ -7,10 +7,8 @@ from database import get_db
 import models
 from security import hash_password, verify_password, create_access_token, verify_token
 
-
 # Create FastAPI application
 app = FastAPI(title="Multi-Agent Stock Research Analyst")
-
 
 # Enable CORS
 app.add_middleware(
@@ -24,18 +22,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/")
 def home():
     return {"message": "Welcome to Multi-Agent Stock Research Analyst API!"}
-
 
 class RegisterRequest(BaseModel):
     full_name: str
     email: EmailStr
     password: str
     confirm_password: str
-
 
 @app.post("/register")
 def register_user(user: RegisterRequest, db: Session = Depends(get_db)):
@@ -60,11 +55,9 @@ def register_user(user: RegisterRequest, db: Session = Depends(get_db)):
         "email": new_user.email
     }
 
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-
 
 @app.post("/login")
 def login_user(user_credentials: LoginRequest, db: Session = Depends(get_db)):
@@ -85,8 +78,6 @@ def login_user(user_credentials: LoginRequest, db: Session = Depends(get_db)):
         }
     }
 
-
-# --- NEW PROTECTED ENDPOINT ---
 @app.get("/dashboard")
 def get_dashboard(user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
     """
@@ -100,4 +91,46 @@ def get_dashboard(user_id: int = Depends(verify_token), db: Session = Depends(ge
         "user_id": user.user_id,
         "email": user.email,
         "status": "Authentication verified successfully"
+    }
+
+# --- WATCHLIST SCHEMAS & ENDPOINTS ---
+
+class WatchlistCreate(BaseModel):
+    stock_symbol: str
+
+@app.post("/watchlist")
+def add_to_watchlist(item: WatchlistCreate, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
+    # 1. Verify the user exists
+    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # 2. Save the stock symbol to the database (convert to uppercase automatically)
+    new_item = models.Watchlist(user_id=user.user_id, stock_symbol=item.stock_symbol.upper())
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    
+    return {
+        "message": f"Successfully added {new_item.stock_symbol} to your watchlist!",
+        "item": {
+            "id": new_item.id,
+            "stock_symbol": new_item.stock_symbol
+        }
+    }
+
+@app.get("/watchlist")
+def get_watchlist(user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
+    # Retrieve all stocks matching this user's ID
+    watchlist = db.query(models.Watchlist).filter(models.Watchlist.user_id == user_id).all()
+    
+    return {
+        "watchlist": [
+            {
+                "id": item.id, 
+                "stock_symbol": item.stock_symbol, 
+                "added_at": item.added_at
+            } 
+            for item in watchlist
+        ]
     }
