@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
+import yfinance as yf
 
 from database import get_db
 import models
@@ -134,3 +135,34 @@ def get_watchlist(user_id: int = Depends(verify_token), db: Session = Depends(ge
             for item in watchlist
         ]
     }
+
+# --- YAHOO FINANCE ENDPOINT ---
+
+@app.get("/stock/{symbol}")
+def get_stock_data(symbol: str, user_id: int = Depends(verify_token)):
+    try:
+        # Fetch data from Yahoo Finance
+        ticker = yf.Ticker(symbol)
+        
+        # Get the latest daily price history
+        hist = ticker.history(period="1d")
+        
+        if hist.empty:
+            raise HTTPException(status_code=404, detail=f"Could not find market data for {symbol}")
+            
+        current_price = hist['Close'].iloc[-1]
+        
+        # Attempt to get the company name (fallback to symbol if not found)
+        info = ticker.info
+        company_name = info.get("shortName", symbol)
+        currency = info.get("currency", "USD")
+        
+        return {
+            "symbol": symbol.upper(),
+            "company_name": company_name,
+            "current_price": round(current_price, 2),
+            "currency": currency
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error fetching data from Yahoo Finance: {str(e)}")
