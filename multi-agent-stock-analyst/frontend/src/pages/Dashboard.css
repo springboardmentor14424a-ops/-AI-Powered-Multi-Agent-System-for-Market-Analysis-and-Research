@@ -81,12 +81,6 @@
     font-weight: 800;
 }
 
-.welcome-message {
-    color: #786B82;
-    font-size: 15px;
-    line-height: 1.7;
-}
-
 .user-email {
     color: #7F5D99;
     font-size: 14px;
@@ -163,6 +157,28 @@
     display: flex;
     gap: 15px;
     flex-wrap: wrap;
+}
+/* =====================================
+   STOCK MARKET SELECTOR
+===================================== */
+
+.stock-search-section .market-select {
+    flex: 0 1 190px;
+    min-width: 170px;
+    padding: 13px 15px;
+    border: 1px solid #DFD2E8;
+    border-radius: 9px;
+    font-size: 14px;
+    outline: none;
+    background: #FFFFFF;
+    color: #4C2365;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.stock-search-section .market-select:focus {
+    border-color: #9E7EB5;
+    box-shadow: 0 0 0 4px rgba(158, 126, 181, 0.13);
 }
 
 .stock-search-section input,
@@ -573,4 +589,387 @@
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
+}
+
+/* =====================================
+   OHLCV HISTORICAL DATA TABLE
+===================================== */
+
+.ohlcv-section {
+    margin-top: 35px;
+    border-top: 1px solid #E9DDEC;
+    padding-top: 25px;
+}
+
+.ohlcv-header {
+    margin-bottom: 20px;
+}
+
+.ohlcv-header h3 {
+    color: #4C2365;
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+
+.ohlcv-header p {
+    color: #786B82;
+    font-size: 13px;
+    margin: 0;
+}
+
+.ohlcv-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #E9DDEC;
+    border-radius: 10px;
+}
+
+.ohlcv-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 750px;
+    background: white;
+}
+
+.ohlcv-table th {
+    background: #F4EFF8;
+    color: #4C2365;
+    padding: 15px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ohlcv-table td {
+    padding: 14px 15px;
+    border-top: 1px solid #F0E7F5;
+    color: #51445B;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.ohlcv-table tbody tr:hover {
+    background: #FAF7FC;
+}
+
+.ohlcv-table th:first-child,
+.ohlcv-table td:first-child {
+    padding-left: 20px;
+}
+
+.ohlcv-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.ohlcv-header select {
+    padding: 10px 14px;
+    border: 1px solid #DFD2E8;
+    border-radius: 8px;
+    background: white;
+    color: #4C2365;
+    outline: none;
+    cursor: pointer;
+}
+
+.ohlcv-header select:focus {
+    border-color: #9E7EB5;
+    box-shadow: 0 0 0 3px rgba(158, 126, 181, 0.13);
+}
+
+/* =====================================
+   COMPANY RESEARCH SECTION
+===================================== */
+
+.company-research-section {
+    margin-top: 35px;
+    background: #FFFFFF;
+    padding: 30px;
+    border-radius: 17px;
+    border: 1px solid #E9DDEC;
+    box-shadow: 0 5px 20px rgba(76, 35, 101, 0.06);
+}
+
+.company-research-header h2 {
+    color: #4C2365;
+    font-size: 23px;
+    margin: 0 0 8px;
+}
+
+.company-research-header p {
+    color: #786B82;
+    font-size: 14px;
+    margin-bottom: 22px;
+}
+
+/* Company Profile */
+
+.company-profile-result {
+    margin-top: 28px;
+    padding: 25px;
+    background: #FFFFFF;
+    border: 1px solid #E9DDEC;
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(76, 35, 101, 0.04);
+}
+
+.company-profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 25px;
+}
+
+.company-profile-header h2 {
+    color: #4C2365;
+    margin: 0 0 8px;
+    font-size: 22px;
+}
+
+.company-profile-header p {
+    color: #786B82;
+    margin: 0;
+    font-size: 14px;
+}
+
+.company-ticker {
+    background: #F0E7F5;
+    color: #4C2365;
+    padding: 9px 15px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+/* Company Information Cards */
+
+.company-info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.company-info-card {
+    background: #FAF7FC;
+    border: 1px solid #E9DDEC;
+    border-radius: 12px;
+    padding: 17px;
+}
+
+.company-info-card span {
+    display: block;
+    color: #786B82;
+    font-size: 13px;
+    margin-bottom: 9px;
+}
+
+.company-info-card h3 {
+    color: #4C2365;
+    font-size: 16px;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.company-info-card a {
+    color: #7F5D99;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.company-info-card a:hover {
+    text-decoration: underline;
+}
+
+/* Company Description */
+
+.company-description {
+    margin-top: 25px;
+    padding: 20px;
+    background: #FAF7FC;
+    border-left: 4px solid #9E7EB5;
+    border-radius: 9px;
+}
+
+.company-description h3 {
+    color: #4C2365;
+    margin: 0 0 12px;
+    font-size: 17px;
+}
+
+.company-description p {
+    color: #62556B;
+    font-size: 14px;
+    line-height: 1.8;
+    margin: 0;
+}
+
+/* Source Information */
+
+.company-source {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #E9DDEC;
+    color: #9E7EB5;
+    font-size: 12px;
+}
+
+/* =====================================
+   FINANCIAL STATEMENTS
+===================================== */
+
+.financial-statements-section {
+    margin-top: 30px;
+}
+
+.financial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+}
+
+.financial-header h2 {
+    color: #4C2365;
+    font-size: 22px;
+    margin: 0 0 7px;
+}
+
+.financial-header p {
+    color: #786B82;
+    font-size: 14px;
+    margin: 0;
+}
+
+.financial-header select {
+    padding: 11px 15px;
+    border: 1px solid #DFD2E8;
+    border-radius: 8px;
+    background: white;
+    color: #4C2365;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+}
+
+.financial-header select:focus {
+    border-color: #9E7EB5;
+    box-shadow: 0 0 0 3px rgba(158, 126, 181, 0.13);
+}
+
+/* Financial Statement Cards */
+
+.financial-card {
+    margin-top: 22px;
+    padding: 22px;
+    background: #FFFFFF;
+    border: 1px solid #E9DDEC;
+    border-radius: 13px;
+    box-shadow: 0 4px 15px rgba(76, 35, 101, 0.04);
+}
+
+.financial-card h3 {
+    color: #4C2365;
+    font-size: 18px;
+    margin: 0 0 18px;
+}
+
+/* Financial Tables */
+
+.financial-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #E9DDEC;
+    border-radius: 10px;
+}
+
+.financial-table {
+    width: 100%;
+    min-width: 650px;
+    border-collapse: collapse;
+    background: white;
+}
+
+.financial-table th {
+    background: #F4EFF8;
+    color: #4C2365;
+    padding: 14px 15px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.financial-table td {
+    padding: 13px 15px;
+    border-top: 1px solid #F0E7F5;
+    color: #51445B;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.financial-table tbody tr:hover {
+    background: #FAF7FC;
+}
+
+.financial-table td:first-child {
+    font-weight: 600;
+    color: #4C2365;
+}
+
+/* =====================================
+   COMPANY RESEARCH RESPONSIVE DESIGN
+===================================== */
+
+@media (max-width: 768px) {
+    .company-research-section {
+        padding: 20px;
+    }
+
+    .company-info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .company-search-form {
+        flex-direction: column;
+    }
+
+    .company-search-form input,
+    .company-search-form button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+@media (max-width: 500px) {
+    .company-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .company-profile-result {
+        padding: 17px;
+    }
+
+    .company-profile-header h2 {
+        font-size: 19px;
+    }
+
+    .financial-card {
+        padding: 15px;
+    }
+
+    .company-source {
+        flex-direction: column;
+    }
 }

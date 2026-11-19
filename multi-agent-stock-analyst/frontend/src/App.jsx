@@ -55,10 +55,6 @@ function App() {
         <div className="welcome-page">
             <div className="welcome-card">
 
-                <div className="welcome-icon">
-                    <span>✦</span>
-                </div>
-
                 <p className="welcome-tagline">
                     AI-POWERED MARKET INTELLIGENCE
                 </p>

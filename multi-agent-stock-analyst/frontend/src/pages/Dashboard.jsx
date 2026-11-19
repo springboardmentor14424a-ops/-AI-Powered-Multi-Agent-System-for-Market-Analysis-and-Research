@@ -17,18 +17,34 @@ function Dashboard({ token, onLogout }) {
     // Profile loading and error states
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-
     // Stock search states
     const [ticker, setTicker] = useState("");
     const [period, setPeriod] = useState("1mo");
     const [stockData, setStockData] = useState(null);
     const [historyData, setHistoryData] = useState(null);
+    // Independent OHLCV table states
+    const [ohlcvPeriod, setOhlcvPeriod] = useState("1mo");
+    const [ohlcvData, setOhlcvData] = useState(null);
+    const [ohlcvLoading, setOhlcvLoading] = useState(false);
+    const [ohlcvError, setOhlcvError] = useState("");
     const [stockLoading, setStockLoading] = useState(false);
     const [stockError, setStockError] = useState("");
     const [showWatchlist, setShowWatchlist] = useState(false);
     const [watchlistMessage, setWatchlistMessage] = useState("");
     const [watchlistError, setWatchlistError] = useState("");
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
+    // Company Research states
+
+    const [companyProfile, setCompanyProfile] = useState(null);
+    const [companyLoading, setCompanyLoading] = useState(false);
+    const [companyError, setCompanyError] = useState("");
+
+    // Financial statement states
+    const [financialData, setFinancialData] = useState(null);
+    const [financialPeriod, setFinancialPeriod] = useState("annual");
+    const [financialLoading, setFinancialLoading] = useState(false);
+    const [financialError, setFinancialError] = useState("");
+    const [selectedMarket, setSelectedMarket] = useState("NSE");
     // Fetch logged-in user profile
     useEffect(() => {
         const fetchProfile = async () => {
@@ -59,6 +75,14 @@ function Dashboard({ token, onLogout }) {
 
     // Fetch stock information and historical data
     const fetchStockData = async (e) => {
+        const selectedTicker = ticker.trim();
+
+        // Clear previous company's information
+        setCompanyProfile(null);
+        setCompanyError("");
+        setFinancialData(null);
+        setFinancialError("");
+        setFinancialPeriod("annual");
         e.preventDefault();
 
         if (!ticker.trim()) {
@@ -78,18 +102,35 @@ function Dashboard({ token, onLogout }) {
 
             // Fetch current stock information
             const stockResponse = await axios.get(
-                `http://127.0.0.1:8000/finance/stock/${ticker.trim()}`,
-                { headers }
+                `http://127.0.0.1:8000/finance/stock/${encodeURIComponent(selectedTicker)}`,
+                {
+                    params: { market: selectedMarket },
+                    headers
+                }
             );
 
             // Fetch historical stock information
             const historyResponse = await axios.get(
-                `http://127.0.0.1:8000/finance/history/${ticker.trim()}?period=${period}`,
-                { headers }
+                `http://127.0.0.1:8000/finance/history/${encodeURIComponent(selectedTicker)}`,
+                {
+                    params: {
+                        period: period,
+                        market: selectedMarket
+                    },
+                    headers
+                }
             );
 
             setStockData(stockResponse.data);
             setHistoryData(historyResponse.data);
+            const ohlcvResponse = await axios.get(
+                `http://127.0.0.1:8000/finance/history/${selectedTicker}?period=${ohlcvPeriod}`,
+                { headers }
+            );
+
+            setOhlcvData(ohlcvResponse.data);
+            // Fetch company profile and financial statements
+            await fetchCompanyProfile(selectedTicker);
 
         } catch (err) {
             console.error("Stock data error:", err);
@@ -109,42 +150,163 @@ function Dashboard({ token, onLogout }) {
         }
     };
 
-// Add searched stock to watchlist
-const handleAddToWatchlist = async () => {
-    try {
-        setAddingToWatchlist(true);
-        setWatchlistMessage("");
-        setWatchlistError("");
+    // Fetch company profile using the ticker from the main stock search
+    const fetchCompanyProfile = async (selectedTicker) => {
+        try {
+            setCompanyLoading(true);
+            setCompanyError("");
+            setCompanyProfile(null);
 
-        const headers = {
-            Authorization: `Bearer ${token}`
-        };
+            const headers = {
+                Authorization: `Bearer ${token}`
+            };
 
-        const response = await axios.post(
-            "http://127.0.0.1:8000/watchlist/add",
-            {
-                ticker: historyData.ticker
-            },
-            { headers }
-        );
-
-        setWatchlistMessage(response.data.message);
-
-    } catch (err) {
-        if (err.response?.status === 409) {
-            setWatchlistError(
-                "This stock is already in your watchlist."
+            const response = await axios.get(
+                `http://127.0.0.1:8000/finance/company/${encodeURIComponent(selectedTicker)}/profile`,
+                {
+                    params: { market: selectedMarket },
+                    headers
+                }
             );
-        } else {
-            setWatchlistError(
-                err.response?.data?.detail ||
-                "Unable to add stock to watchlist."
-            );
+
+            setCompanyProfile(response.data);
+
+            // Load annual financial statements for the same company
+            setFinancialPeriod("annual");
+            await fetchCompanyFinancials(selectedTicker, "annual");
+
+        } catch (err) {
+            console.error("Company profile error:", err);
+
+            if (err.response?.status === 401) {
+                setCompanyError("Session expired. Please log in again.");
+                onLogout();
+            } else {
+                setCompanyError(
+                    err.response?.data?.detail ||
+                    "Unable to retrieve company profile."
+                );
+            }
+        } finally {
+            setCompanyLoading(false);
         }
-    } finally {
-        setAddingToWatchlist(false);
-    }
-};
+    };
+
+
+    // Fetch annual or quarterly financial statements
+    const fetchCompanyFinancials = async (selectedTicker, selectedPeriod) => {
+        try {
+            setFinancialLoading(true);
+            setFinancialError("");
+            setFinancialData(null);
+
+            const headers = {
+                Authorization: `Bearer ${token}`
+            };
+
+            const response = await axios.get(
+                `http://127.0.0.1:8000/finance/company/${encodeURIComponent(selectedTicker)}/financials`,
+                {
+                    params: {
+                        period: selectedPeriod,
+                        market: selectedMarket
+                    },
+                    headers
+                }
+            );
+
+            setFinancialData(response.data);
+
+        } catch (err) {
+            console.error("Financial statement error:", err);
+
+            if (err.response?.status === 401) {
+                setFinancialError("Session expired. Please log in again.");
+                onLogout();
+            } else {
+                setFinancialError(
+                    err.response?.data?.detail ||
+                    "Unable to retrieve financial statements."
+                );
+            }
+        } finally {
+            setFinancialLoading(false);
+        }
+    };
+
+    // Fetch OHLCV data independently
+    const fetchOHLCVData = async (selectedPeriod) => {
+        if (!historyData?.ticker) return;
+
+        try {
+            setOhlcvLoading(true);
+            setOhlcvError("");
+
+            const headers = {
+                Authorization: `Bearer ${token}`
+            };
+
+            const response = await axios.get(
+                `http://127.0.0.1:8000/finance/history/${encodeURIComponent(ticker.trim())}`,
+                {
+                    params: {
+                        period: selectedPeriod,
+                        market: selectedMarket
+                    },
+                    headers
+                }
+            );
+
+            setOhlcvData(response.data);
+
+        } catch (err) {
+            console.error("OHLCV data error:", err);
+
+            setOhlcvError(
+                err.response?.data?.detail ||
+                "Unable to fetch OHLCV data."
+            );
+
+        } finally {
+            setOhlcvLoading(false);
+        }
+    };
+    // Add searched stock to watchlist
+    const handleAddToWatchlist = async () => {
+        try {
+            setAddingToWatchlist(true);
+            setWatchlistMessage("");
+            setWatchlistError("");
+
+            const headers = {
+                Authorization: `Bearer ${token}`
+            };
+
+            const response = await axios.post(
+                "http://127.0.0.1:8000/watchlist/add",
+                {
+                    ticker: historyData.ticker
+                },
+                { headers }
+            );
+
+            setWatchlistMessage(response.data.message);
+
+        } catch (err) {
+            if (err.response?.status === 409) {
+                setWatchlistError(
+                    "This stock is already in your watchlist."
+                );
+            } else {
+                setWatchlistError(
+                    err.response?.data?.detail ||
+                    "Unable to add stock to watchlist."
+                );
+            }
+        } finally {
+            setAddingToWatchlist(false);
+        }
+    };
 
     // Prepare historical data for the chart
     const chartData = historyData?.history || [];
@@ -169,6 +331,78 @@ const handleAddToWatchlist = async () => {
             currency: "INR",
             maximumFractionDigits: 2
         }).format(value);
+
+    // Render financial statement data as a table
+    const renderStatementTable = (title, statement) => {
+
+        if (!statement || Object.keys(statement).length === 0) {
+            return (
+                <div className="financial-card">
+                    <h3>{title}</h3>
+                    <p>No data available for this statement.</p>
+                </div>
+            );
+        }
+
+        const periods = Object.keys(statement);
+
+        const metrics = [
+            ...new Set(
+                periods.flatMap(date =>
+                    Object.keys(statement[date] || {})
+                )
+            )
+        ];
+
+        const formatFinancialValue = (value) => {
+            if (value === null || value === undefined) {
+                return "—";
+            }
+
+            return Number(value).toLocaleString("en-IN", {
+                maximumFractionDigits: 2
+            });
+        };
+
+        return (
+            <div className="financial-card">
+                <h3>{title}</h3>
+
+                <div className="financial-table-wrapper">
+                    <table className="financial-table">
+
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+
+                                {periods.map(date => (
+                                    <th key={date}>{date}</th>
+                                ))}
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {metrics.map(metric => (
+                                <tr key={metric}>
+                                    <td>{metric}</td>
+
+                                    {periods.map(date => (
+                                        <td key={date}>
+                                            {formatFinancialValue(
+                                                statement[date]?.[metric]
+                                            )}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
     // Skeleton loading screen
     if (loading) {
         return (
@@ -191,7 +425,18 @@ const handleAddToWatchlist = async () => {
     if (error) {
         return <p className="error">{error}</p>;
     }
-
+    const stockSuggestions = [
+        { name: "Reliance Industries", ticker: "RELIANCE" },
+        { name: "Tata Consultancy Services", ticker: "TCS" },
+        { name: "Infosys", ticker: "INFY" },
+        { name: "HDFC Bank", ticker: "HDFCBANK" },
+        { name: "ICICI Bank", ticker: "ICICIBANK" },
+        { name: "State Bank of India", ticker: "SBIN" },
+        { name: "ITC", ticker: "ITC" },
+        { name: "Wipro", ticker: "WIPRO" },
+        { name: "Larsen & Toubro", ticker: "LT" },
+        { name: "Axis Bank", ticker: "AXISBANK" }
+    ];
     return (
         <div className="dashboard-page">
 
@@ -222,11 +467,6 @@ const handleAddToWatchlist = async () => {
                     Welcome back, {user?.full_name}!
                 </h1>
 
-                <p className="welcome-message">
-                    Welcome to your AI-powered market research dashboard.
-                    Explore market trends and discover intelligent insights.
-                </p>
-
                 <p className="user-email">
                     Email: {user?.email}
                 </p>
@@ -249,12 +489,33 @@ const handleAddToWatchlist = async () => {
                         <Watchlist token={token} />
                     )}
                     <form onSubmit={fetchStockData}>
+                        <select
+                            className="market-select"
+                            value={selectedMarket}
+                            onChange={(e) => setSelectedMarket(e.target.value)}
+                        >
+                            <option value="NSE">India - NSE</option>
+                            <option value="BSE">India - BSE</option>
+                            <option value="NASDAQ">USA - NASDAQ</option>
+                            <option value="NYSE">USA - NYSE</option>
+                        </select>
                         <input
                             type="text"
-                            placeholder="Enter ticker (e.g. RELIANCE.NS)"
+                            list="stock-options"
+                            placeholder="Search company or enter ticker..."
                             value={ticker}
                             onChange={(e) => setTicker(e.target.value)}
                         />
+
+                        <datalist id="stock-options">
+                            {stockSuggestions.map((stock) => (
+                                <option
+                                    key={stock.ticker}
+                                    value={stock.ticker}
+                                    label={stock.name}
+                                />
+                            ))}
+                        </datalist>
 
                         <select
                             value={period}
@@ -410,6 +671,257 @@ const handleAddToWatchlist = async () => {
                                 Market data may be delayed.
                             </p>
 
+                            {/* OHLCV Historical Data Table */}
+                            <div className="ohlcv-section">
+
+                                <div className="ohlcv-header">
+                                    <div>
+                                        <h3>Historical OHLCV Data</h3>
+                                        <p>Daily Open, High, Low, Close and Volume details</p>
+                                    </div>
+
+                                    <select
+                                        value={ohlcvPeriod}
+                                        onChange={(e) => {
+                                            const selectedPeriod = e.target.value;
+                                            setOhlcvPeriod(selectedPeriod);
+                                            fetchOHLCVData(selectedPeriod);
+                                        }}
+                                    >
+                                        <option value="1mo">1 Month</option>
+                                        <option value="3mo">3 Months</option>
+                                        <option value="6mo">6 Months</option>
+                                    </select>
+                                </div>
+
+                                <div className="ohlcv-table-wrapper">
+                                    <table className="ohlcv-table">
+                                        {ohlcvLoading && <p>Loading OHLCV data...</p>}
+
+                                        {ohlcvError && <p className="error">{ohlcvError}</p>}
+
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Open (₹)</th>
+                                                <th>High (₹)</th>
+                                                <th>Low (₹)</th>
+                                                <th>Close (₹)</th>
+                                                <th>Volume</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+                                            {(ohlcvData?.history || []).map((item, index) => (
+
+                                                <tr key={index}>
+                                                    <td>{item.date}</td>
+
+                                                    <td>{formatPrice(item.open)}</td>
+
+                                                    <td>{formatPrice(item.high)}</td>
+
+                                                    <td>{formatPrice(item.low)}</td>
+
+                                                    <td>{formatPrice(item.close)}</td>
+
+                                                    <td>
+                                                        {item.volume.toLocaleString("en-IN")}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+
+                                    </table>
+                                </div>
+
+                            </div>
+                            <section className="company-research-section">
+
+
+                                {companyError && (
+                                    <p className="error">{companyError}</p>
+                                )}
+                                {companyLoading && <p>Loading company information...</p>}
+
+                                {companyError && <p className="error">{companyError}</p>}
+                                {/* Company Profile */}
+                                {companyProfile && (
+                                    <div className="company-profile-result">
+
+                                        <div className="company-profile-header">
+                                            <div>
+                                                <h2>
+                                                    {companyProfile.profile.company_name ||
+                                                        companyProfile.ticker}
+                                                </h2>
+
+                                                <p>
+                                                    {companyProfile.profile.sector || "Sector unavailable"}
+                                                    {" · "}
+                                                    {companyProfile.profile.industry || "Industry unavailable"}
+                                                </p>
+                                            </div>
+
+                                            <span className="company-ticker">
+                                                {companyProfile.ticker}
+                                            </span>
+                                        </div>
+
+                                        <div className="company-info-grid">
+
+                                            <div className="company-info-card">
+                                                <span>Country</span>
+                                                <h3>
+                                                    {companyProfile.profile.country || "N/A"}
+                                                </h3>
+                                            </div>
+
+                                            <div className="company-info-card">
+                                                <span>Market Capitalization</span>
+                                                <h3>
+                                                    {companyProfile.profile.market_cap != null
+                                                        ? Number(
+                                                            companyProfile.profile.market_cap
+                                                        ).toLocaleString("en-IN")
+                                                        : "N/A"}
+                                                </h3>
+                                            </div>
+
+                                            <div className="company-info-card">
+                                                <span>Employees</span>
+                                                <h3>
+                                                    {companyProfile.profile.employees != null
+                                                        ? Number(
+                                                            companyProfile.profile.employees
+                                                        ).toLocaleString("en-IN")
+                                                        : "N/A"}
+                                                </h3>
+                                            </div>
+
+                                            <div className="company-info-card">
+                                                <span>Exchange</span>
+                                                <h3>
+                                                    {companyProfile.profile.exchange || "N/A"}
+                                                </h3>
+                                            </div>
+
+                                            <div className="company-info-card">
+                                                <span>Currency</span>
+                                                <h3>
+                                                    {companyProfile.profile.currency || "N/A"}
+                                                </h3>
+                                            </div>
+
+                                            <div className="company-info-card">
+                                                <span>Website</span>
+                                                <h3>
+                                                    {companyProfile.profile.website ? (
+                                                        <a
+                                                            href={companyProfile.profile.website}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                        >
+                                                            Visit Website
+                                                        </a>
+                                                    ) : "N/A"}
+                                                </h3>
+                                            </div>
+
+                                        </div>
+
+                                        <div className="company-description">
+                                            <h3>About the Company</h3>
+                                            <p>
+                                                {companyProfile.profile.business_summary ||
+                                                    "Company description unavailable."}
+                                            </p>
+                                        </div>
+
+                                        <div className="company-source">
+                                            <span>
+                                                Source: {companyProfile.source}
+                                            </span>
+
+                                            <span>
+                                                Retrieved: {new Date(
+                                                    companyProfile.retrieved_at
+                                                ).toLocaleString("en-IN")}
+                                            </span>
+                                        </div>
+
+                                    </div>
+                                )}
+
+                                {/* Financial Statements */}
+                                {companyProfile && (
+                                    <div className="financial-statements-section">
+
+                                        <div className="financial-header">
+                                            <div>
+                                                <h2>Financial Statements</h2>
+                                                <p>
+                                                    Explore the company's financial performance.
+                                                </p>
+                                            </div>
+
+                                            <select
+                                                value={financialPeriod}
+                                                onChange={(e) => {
+                                                    const selectedPeriod = e.target.value;
+
+                                                    setFinancialPeriod(selectedPeriod);
+                                                    fetchCompanyFinancials(companyProfile.ticker, selectedPeriod);
+                                                }}
+                                            >
+                                                <option value="annual">Annual</option>
+                                                <option value="quarterly">Quarterly</option>
+                                            </select>
+                                        </div>
+
+                                        {financialLoading && (
+                                            <p>Retrieving financial statements...</p>
+                                        )}
+
+                                        {financialError && (
+                                            <p className="error">{financialError}</p>
+                                        )}
+
+                                        {financialData && (
+                                            <>
+                                                {renderStatementTable(
+                                                    "Income Statement",
+                                                    financialData.financial_statements.income_statement
+                                                )}
+
+                                                {renderStatementTable(
+                                                    "Balance Sheet",
+                                                    financialData.financial_statements.balance_sheet
+                                                )}
+
+                                                {renderStatementTable(
+                                                    "Cash Flow Statement",
+                                                    financialData.financial_statements.cash_flow_statement
+                                                )}
+
+                                                <div className="company-source">
+                                                    <span>
+                                                        Source: {financialData.source}
+                                                    </span>
+
+                                                    <span>
+                                                        Retrieved: {new Date(
+                                                            financialData.retrieved_at
+                                                        ).toLocaleString("en-IN")}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        )}
+
+                                    </div>
+                                )}
+
+                            </section>
                         </div>
                     )}
 
