@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ import yfinance as yf
 
 from database import get_db
 import models
+import market_data
 from security import hash_password, verify_password, create_access_token, verify_token
 
 # Create FastAPI application
@@ -194,6 +196,7 @@ def get_stock_data(symbol: str, user_id: int = Depends(verify_token)):
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error fetching data from Yahoo Finance: {str(e)}")
+
 # --- RESEARCH HISTORY ENDPOINTS ---
 
 class ResearchCreate(BaseModel):
@@ -201,12 +204,10 @@ class ResearchCreate(BaseModel):
 
 @app.post("/research/start")
 def start_research_task(request: ResearchCreate, user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
-    # 1. Get the user to read their saved preferences
     user = db.query(models.User).filter(models.User.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    # 2. Create a new task using the requested ticker and the user's saved preferences
     new_task = models.ResearchTask(
         user_id=user.user_id,
         ticker=request.ticker.upper(),
@@ -230,7 +231,6 @@ def start_research_task(request: ResearchCreate, user_id: int = Depends(verify_t
 
 @app.get("/research/history")
 def get_research_history(user_id: int = Depends(verify_token), db: Session = Depends(get_db)):
-    # Fetch all tasks for this user, newest first
     tasks = db.query(models.ResearchTask).filter(
         models.ResearchTask.user_id == user_id
     ).order_by(models.ResearchTask.created_at.desc()).all()
@@ -247,4 +247,41 @@ def get_research_history(user_id: int = Depends(verify_token), db: Session = Dep
             }
             for task in tasks
         ]
-    }    
+    }
+
+# --- MODULE 2: STOCK SEARCH & MARKET DATA ENDPOINTS ---
+
+@app.get("/stocks/search")
+def search_stock(query: str, user_id: int = Depends(verify_token)):
+    if not query.strip():
+        raise HTTPException(status_code=400, detail="Search query cannot be empty")
+    return market_data.search_companies(query)
+
+@app.get("/stocks/data/{symbol}")
+def get_market_data(
+    symbol: str,
+    market: Optional[str] = None,
+    period: Optional[str] = None,
+    user_id: int = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    selected_market = market or (user.preferred_market if user else "NASDAQ") or "NASDAQ"
+    selected_period = period or (user.preferred_period if user else "1 Year") or "1 Year"
+
+    try:
+        data = market_data.get_full_market_data(
+            symbol=symbol,
+            market=selected_market,
+            period=selected_period
+        )
+        if not data["validation"]["is_valid"]:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No valid market data found for {symbol} on {selected_market}"
+            )
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to retrieve market data: {str(e)}")
