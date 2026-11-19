@@ -1,7 +1,7 @@
 
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from datetime import datetime
-from typing import  Optional
+from typing import  Optional, List
 
 
 class UserRegister(BaseModel):
@@ -65,6 +65,7 @@ class ResearchReportResponse(BaseModel):
 class StockSearchResult(BaseModel):
     symbol: str
     company_name: str
+    listing_exchange: str
 
 
 class SavedStockCreate(BaseModel):
@@ -78,6 +79,36 @@ class SavedStockResponse(BaseModel):
     saved_date: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class HistoricalStockRecord(BaseModel):
+    date: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+
+class StockMarketDataResponse(BaseModel):
+    ticker: str
+    analysis_period: str
+
+    data_start_date: str
+    data_end_date: str
+    records_count: int
+
+    starting_price: float
+    ending_price: float
+
+    highest_price: float
+    lowest_price: float
+    average_price: float
+
+    average_volume: int
+
+    price_change: float
+    percentage_change: float
+
+    historical_data: List[HistoricalStockRecord]
 
 
 # ==========================================

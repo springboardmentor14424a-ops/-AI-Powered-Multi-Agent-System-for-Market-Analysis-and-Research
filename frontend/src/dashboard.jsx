@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import "./Dashboard.css";
+import StockSearch from "./stocksearch";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -216,6 +217,23 @@ function Dashboard({ user, token, onLogout }) {
     setActivePage("Stock Research");
     setMessage(`${ticker} selected. You can now start research.`);
     setError("");
+  };
+  const handleSelectStockForResearch = (stock) => {
+    setForm((previousForm) => ({
+      ...previousForm,
+      company_name: stock.company_name,
+      stock_ticker: stock.stock_ticker
+    }));
+
+    setError("");
+    setSuccess(
+      `${stock.stock_ticker} selected. You can now start stock research.`
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
   };
 
   // =====================================
@@ -572,6 +590,10 @@ function Dashboard({ user, token, onLogout }) {
             </button>
           </form>
         </div>
+        <StockSearch
+          token={token}
+          onSelectStock={handleSelectStockForResearch}
+        />
 
         <div className="information-card">
           <h3>Research Information</h3>

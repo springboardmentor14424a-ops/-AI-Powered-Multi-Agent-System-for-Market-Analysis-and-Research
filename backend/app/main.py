@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
@@ -16,9 +16,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.database import (Base, engine, get_db)
 from app.models import (User, ResearchTask, SavedStock, UserPreferences)
-from app.schemas import (UserRegister, UserResponse, ResearchTaskCreate, ResearchTaskResponse, ResearchReportResponse, StockSearchResult, SavedStockCreate, SavedStockResponse, UserPreferencesResponse, UserPreferencesCreate)
+from app.schemas import (UserRegister, UserResponse, ResearchTaskCreate, ResearchTaskResponse, ResearchReportResponse, StockSearchResult, SavedStockCreate, SavedStockResponse, UserPreferencesResponse, UserPreferencesCreate, StockMarketDataResponse)
 from app.security import (hash_password, SECRET_KEY, ALGORITHM)
-from app.yahoo_data_service import (get_stock_data,get_stock_list, search_stocks, get_stock_by_ticker, validate_stock_for_market)
+from app.yahoo_data_service import (get_stock_data, get_stock_list, search_stocks, get_stock_by_ticker, validate_stock_for_market)
 from app.research_service import (
     start_research,
     complete_research,
@@ -457,6 +457,36 @@ def search_stock_api(
             status_code=500,
             detail=f"Stock search failed: {str(error)}"
         )
+
+@app.get(
+    "/stocks/{ticker}/market-data",
+    response_model=StockMarketDataResponse
+)
+def stock_market_data(
+    ticker: str,
+    analysis_period: str = "3 Months",
+    current_user: User = Depends(get_authenticated_user)
+):
+    try:
+        result = get_stock_data(
+            ticker,
+            analysis_period
+        )
+
+        return result
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error)
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
 
 
 # 2. Add a stock to the logged-in user's watchlist

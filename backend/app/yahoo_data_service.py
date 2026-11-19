@@ -5,88 +5,209 @@ from pathlib import Path
 import pandas as pd
 
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).resolve().parent
 
-STOCKS_DIR = BASE_DIR / "data" / "yahoo_dataset" / "stocks"
+STOCKS_DIR = (
+    BASE_DIR / "data" / "yahoo_dataset" / "stocks"
+)
 
 METADATA_FILE = (
     BASE_DIR / "data" / "yahoo_dataset" / "symbols_valid_meta.csv"
 )
 
+SUPPORTED_PERIODS = {
+    "1 Month": 1,
+    "3 Months": 3,
+    "6 Months": 6,
+    "1 Year": 12,
+    "5 Years": 60,
+}
 
-def get_stock_list():
-    """Return available companies and their ticker symbols."""
+
+def load_metadata():
+    """Load and validate company metadata."""
+
+    if not METADATA_FILE.is_file():
+        raise FileNotFoundError(
+            "Yahoo Finance metadata file was not found."
+        )
 
     metadata = pd.read_csv(METADATA_FILE)
 
-    metadata = metadata[["Symbol", "Security Name", "Listing Exchange"]]
+    required_columns = [
+        "Symbol",
+        "Security Name",
+        "Listing Exchange"
+    ]
 
-    metadata = metadata.dropna(subset=["Symbol"])
+    missing = set(required_columns) - set(metadata.columns)
 
-    return metadata.to_dict(orient="records")
+    if missing:
+        raise ValueError(
+            f"Missing metadata columns: {missing}"
+        )
+
+    metadata = metadata.dropna(
+        subset=["Symbol", "Security Name"]
+    ).copy()
+
+    metadata["Symbol"] = (
+        metadata["Symbol"].astype(str).str.strip().str.upper()
+    )
+
+    metadata["Security Name"] = (
+        metadata["Security Name"].astype(str).str.strip()
+    )
+
+    return metadata
+
+
+def search_stocks(search_text, limit=15):
+    """
+    Search companies using ticker symbol or company name.
+    Only return companies with an available stock CSV.
+    """
+
+    search_text = str(search_text).strip()
+
+    if not search_text:
+        return []
+
+    if len(search_text) > 50:
+        raise ValueError("Search text is too long.")
+
+    if limit < 1 or limit > 50:
+        raise ValueError("Invalid search result limit.")
+
+    metadata = load_metadata()
+
+    query = search_text.upper()
+
+    symbol_matches = metadata[
+        metadata["Symbol"].str.contains(
+            query, regex=False, na=False
+        )
+    ]
+
+    name_matches = metadata[
+        metadata["Security Name"].str.upper().str.contains(
+            query, regex=False, na=False
+        )
+    ]
+
+    # Exact ticker matches should appear first.
+    exact_matches = metadata[
+        metadata["Symbol"] == query
+    ]
+
+    matches = pd.concat(
+        [exact_matches, symbol_matches, name_matches]
+    ).drop_duplicates(subset=["Symbol"])
+
+    results = []
+
+    for _, row in matches.iterrows():
+
+        ticker = row["Symbol"]
+
+        csv_path = STOCKS_DIR / f"{ticker}.csv"
+
+        if not csv_path.is_file():
+            continue
+
+        results.append({
+            "symbol": ticker,
+            "company_name": row["Security Name"],
+            "listing_exchange": str(
+                row["Listing Exchange"]
+            )
+        })
+
+        if len(results) >= limit:
+            break
+
+    return results
 
 
 def get_stock_data(ticker, analysis_period="3 Months"):
-    """Load historical stock data for a selected ticker."""
+    """
+    Collect historical market data from the local Yahoo dataset.
+    """
 
-    ticker = ticker.strip().upper()
+    ticker = str(ticker).strip().upper()
 
-    # Prevent invalid filenames and path traversal
     if not re.fullmatch(r"[A-Z0-9.^_-]+", ticker):
-        raise ValueError("Invalid stock ticker")
+        raise ValueError("Invalid stock ticker.")
+
+    if analysis_period not in SUPPORTED_PERIODS:
+        raise ValueError("Unsupported analysis period.")
 
     file_path = STOCKS_DIR / f"{ticker}.csv"
 
     if not file_path.is_file():
         raise FileNotFoundError(
-            f"Stock data not available for ticker {ticker}"
+            f"Historical data not available for {ticker}."
         )
 
     df = pd.read_csv(file_path)
 
     required_columns = [
-        "Date", "Open", "High", "Low",
-        "Close", "Adj Close", "Volume"
+        "Date",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Adj Close",
+        "Volume"
     ]
 
     missing = set(required_columns) - set(df.columns)
 
     if missing:
-        raise ValueError(f"Missing CSV columns: {missing}")
+        raise ValueError(
+            f"Missing stock CSV columns: {missing}"
+        )
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df["Date"] = pd.to_datetime(
+        df["Date"], errors="coerce"
+    )
 
-    df = df.dropna(subset=["Date", "Close"])
+    numeric_columns = [
+        "Open", "High", "Low", "Close",
+        "Adj Close", "Volume"
+    ]
+
+    for column in numeric_columns:
+        df[column] = pd.to_numeric(
+            df[column], errors="coerce"
+        )
+
+    df = df.dropna(
+        subset=["Date", "Open", "High", "Low", "Close", "Volume"]
+    )
 
     df = df.sort_values("Date").reset_index(drop=True)
 
     if df.empty:
-        raise ValueError("No valid historical stock records found")
+        raise ValueError("No valid historical stock records found.")
 
     # Calculate period relative to the latest available dataset date.
-    period_months = {
-        "1 Month": 1,
-        "3 Months": 3,
-        "6 Months": 6,
-        "1 Year": 12,
-        "5 Years": 60
-    }
-
-    if analysis_period not in period_months:
-        raise ValueError("Unsupported analysis period")
+    months = SUPPORTED_PERIODS[analysis_period]
 
     latest_date = df["Date"].max()
 
-    start_date = (
-        latest_date - pd.DateOffset(
-            months=period_months[analysis_period]
-        )
+    start_date = latest_date - pd.DateOffset(
+        months=months
     )
 
-    filtered_df = df[df["Date"] >= start_date].copy()
+    filtered_df = df[
+        df["Date"] >= start_date
+    ].copy()
 
     if filtered_df.empty:
-        raise ValueError("No records found for selected period")
+        raise ValueError(
+            "No historical records available for this period."
+        )
 
     first_record = filtered_df.iloc[0]
     last_record = filtered_df.iloc[-1]
@@ -104,60 +225,71 @@ def get_stock_data(ticker, analysis_period="3 Months"):
     return {
         "ticker": ticker,
         "analysis_period": analysis_period,
-        "data_start_date": first_record["Date"].strftime("%Y-%m-%d"),
-        "data_end_date": last_record["Date"].strftime("%Y-%m-%d"),
-        "records_count": len(filtered_df),
+
+        "data_start_date": first_record["Date"].strftime(
+            "%Y-%m-%d"
+        ),
+
+        "data_end_date": last_record["Date"].strftime(
+            "%Y-%m-%d"
+        ),
+
+        "records_count": int(len(filtered_df)),
+
         "starting_price": round(starting_price, 2),
         "ending_price": round(ending_price, 2),
-        "highest_price": round(float(filtered_df["High"].max()), 2),
-        "lowest_price": round(float(filtered_df["Low"].min()), 2),
-        "average_price": round(float(filtered_df["Close"].mean()), 2),
-        "average_volume": int(filtered_df["Volume"].mean()),
+
+        "highest_price": round(
+            float(filtered_df["High"].max()), 2
+        ),
+
+        "lowest_price": round(
+            float(filtered_df["Low"].min()), 2
+        ),
+
+        "average_price": round(
+            float(filtered_df["Close"].mean()), 2
+        ),
+
+        "average_volume": int(
+            filtered_df["Volume"].mean()
+        ),
+
         "price_change": round(price_change, 2),
-        "percentage_change": round(percentage_change, 2)
+
+        "percentage_change": round(
+            percentage_change, 2
+        ),
+
+        "historical_data": [
+            {
+                "date": row["Date"].strftime("%Y-%m-%d"),
+                "open": round(float(row["Open"]), 2),
+                "high": round(float(row["High"]), 2),
+                "low": round(float(row["Low"]), 2),
+                "close": round(float(row["Close"]), 2),
+                "volume": int(row["Volume"])
+            }
+            for _, row in filtered_df.iterrows()
+        ]
     }
 
 
-def search_stocks(search_text, limit=10):
-    search_text = search_text.strip().upper()
+def get_stock_list(limit=100):
+    """Return available stocks from the local dataset."""
 
-    if not search_text:
-        return []
-
-    if len(search_text) > 50:
-        raise ValueError("Search text is too long")
-
-    metadata = pd.read_csv(METADATA_FILE)
-
-    metadata = metadata[
-        ["Symbol", "Security Name"]
-    ].dropna()
-
-    metadata["Symbol"] = metadata["Symbol"].astype(str).str.upper()
-    metadata["Security Name"] = metadata["Security Name"].astype(str)
-
-    matches = metadata[
-        metadata["Symbol"].str.contains(
-            search_text,
-            regex=False
-        )
-        |
-        metadata["Security Name"].str.upper().str.contains(
-            search_text,
-            regex=False
-        )
-    ]
-
+    metadata = load_metadata()
     results = []
 
-    for _, row in matches.iterrows():
-        symbol = row["Symbol"]
+    for _, row in metadata.iterrows():
+        ticker = row["Symbol"]
+        csv_path = STOCKS_DIR / f"{ticker}.csv"
 
-        # Only show stocks that have a corresponding historical CSV.
-        if (STOCKS_DIR / f"{symbol}.csv").is_file():
+        if csv_path.is_file():
             results.append({
-                "symbol": symbol,
-                "company_name": row["Security Name"]
+                "symbol": ticker,
+                "company_name": row["Security Name"],
+                "listing_exchange": str(row["Listing Exchange"])
             })
 
         if len(results) >= limit:
@@ -167,106 +299,75 @@ def search_stocks(search_text, limit=10):
 
 
 def get_stock_by_ticker(ticker):
-    ticker = ticker.strip().upper()
+    """Find a stock using its exact ticker symbol."""
+
+    ticker = str(ticker).strip().upper()
 
     if not re.fullmatch(r"[A-Z0-9.^_-]+", ticker):
-        return None
+        raise ValueError("Invalid stock ticker.")
 
-    metadata = pd.read_csv(METADATA_FILE)
-
-    metadata["Symbol"] = metadata["Symbol"].astype(str).str.upper()
+    metadata = load_metadata()
 
     matches = metadata[metadata["Symbol"] == ticker]
 
     if matches.empty:
-        return None
+        raise ValueError(f"Stock {ticker} was not found.")
+
+    row = matches.iloc[0]
 
     csv_path = STOCKS_DIR / f"{ticker}.csv"
 
     if not csv_path.is_file():
-        return None
+        raise FileNotFoundError(
+            f"Historical data not available for {ticker}."
+        )
 
     return {
         "symbol": ticker,
-        "company_name": str(matches.iloc[0]["Security Name"])
+        "stock_ticker": ticker,
+        "company_name": row["Security Name"],
+        "listing_exchange": str(row["Listing Exchange"])
     }
 
 
 def validate_stock_for_market(ticker, market):
-    ticker = ticker.strip().upper()
-    market = market.strip().upper()
+    """Validate ticker and check that it belongs to the requested market."""
+
+    ticker = str(ticker).strip().upper()
+    market = str(market).strip().upper()
 
     supported_markets = {"NSE", "BSE", "NASDAQ", "NYSE"}
 
     if market not in supported_markets:
         raise ValueError("Unsupported stock market.")
 
-    # Validate market-specific ticker format
+    if not re.fullmatch(r"[A-Z0-9.^_-]+", ticker):
+        raise ValueError("Invalid stock ticker.")
+
     if market == "NSE" and not ticker.endswith(".NS"):
-        raise ValueError(
-            "For NSE stocks, use the Yahoo Finance .NS suffix. "
-            "Example: RELIANCE.NS"
-        )
+        raise ValueError("NSE tickers must end with .NS.")
 
     if market == "BSE" and not ticker.endswith(".BO"):
-        raise ValueError(
-            "For BSE stocks, use the Yahoo Finance .BO suffix. "
-            "Example: RELIANCE.BO"
-        )
+        raise ValueError("BSE tickers must end with .BO.")
 
     if market in {"NASDAQ", "NYSE"} and (
         ticker.endswith(".NS") or ticker.endswith(".BO")
     ):
-        raise ValueError(
-            "Use an unsuffixed ticker for NASDAQ or NYSE."
-        )
+        raise ValueError("Invalid ticker for US market.")
 
-    if not re.fullmatch(r"[A-Z0-9.^_-]+", ticker):
-        raise ValueError("Invalid stock ticker format.")
+    stock = get_stock_by_ticker(ticker)
 
-    # Check that the local historical CSV exists
-    file_path = STOCKS_DIR / f"{ticker}.csv"
-
-    if not file_path.is_file():
-        raise FileNotFoundError(
-            f"Historical data for {ticker} is not available "
-            f"in the local dataset."
-        )
-
-    # For US stocks, verify the listing exchange using metadata.
     if market in {"NASDAQ", "NYSE"}:
-        metadata = pd.read_csv(METADATA_FILE)
+        exchange = stock["listing_exchange"].strip().upper()
 
-        metadata["Symbol"] = (
-            metadata["Symbol"].astype(str).str.upper()
-        )
-
-        matching = metadata[
-            metadata["Symbol"] == ticker
-        ]
-
-        if matching.empty:
-            raise ValueError(
-                f"{ticker} is not present in the stock metadata."
-            )
-
-        # Common exchange codes in the supplied symbol metadata:
-        # Q = NASDAQ, N = NYSE.
-        exchange_code = str(
-            matching.iloc[0]["Listing Exchange"]
-        ).strip().upper()
-
-        exchange_map = {
-            "Q": "NASDAQ",
-            "N": "NYSE"
+        expected_exchange = {
+            "NASDAQ": "Q",
+            "NYSE": "N"
         }
 
-        actual_market = exchange_map.get(exchange_code)
-
-        if actual_market != market:
+        if exchange != expected_exchange[market]:
             raise ValueError(
-                f"{ticker} is not listed on {market} "
-                f"according to the available metadata."
+                f"{ticker} does not belong to {market}."
             )
 
     return True
