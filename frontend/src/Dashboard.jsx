@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from 'recharts';
 
 function Dashboard() {
   const [data, setData] = useState(null);
@@ -580,6 +589,42 @@ function Dashboard() {
                   <span style={{ backgroundColor: '#f3f4f6', color: '#374151', padding: '4px 10px', borderRadius: '6px', fontSize: '12px' }}>
                     Inconsistent Removed: {marketData.validation.inconsistent_rows_removed}
                   </span>
+                </div>
+
+                {/* Historical Stock Price Chart */}
+                <h5 style={{ margin: '0 0 10px 0', color: '#374151', fontSize: '14px' }}>
+                  Historical Closing Price ({marketData.metadata.period})
+                </h5>
+                <div style={{ width: '100%', height: 280, marginBottom: '24px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={marketData.ohlcv} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#6b7280' }} minTickGap={30} />
+                      <YAxis
+                        domain={['auto', 'auto']}
+                        tick={{ fontSize: 11, fill: '#6b7280' }}
+                        tickFormatter={(val) => val.toFixed(0)}
+                      />
+                      <Tooltip
+                        formatter={(value) => [`${Number(value).toFixed(2)} ${marketData.profile.currency}`, 'Close']}
+                        labelStyle={{ color: '#111827', fontWeight: '600' }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="close"
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#priceGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
 
                 {/* Recent Historical OHLCV Table (Latest 10 Days) */}
