@@ -1,20 +1,16 @@
 import Navbar from '../components/Navbar'
+import Watchlist from '../components/Watchlist'
 import { useAuth } from '../context/AuthContext'
 
-const cards = [
-  {
-    title: 'Research History',
-    text: 'Your past stock research reports will appear here.',
-  },
-  {
-    title: 'Watchlist',
-    text: 'Stocks you save to monitor will appear here.',
-  },
-  {
-    title: 'Preferences',
-    text: 'Choose your market (NSE, BSE, NASDAQ, NYSE) and default analysis period.',
-  },
-]
+function PlaceholderCard({ title, text }) {
+  return (
+    <div className="rounded-xl bg-slate-800 p-6">
+      <h2 className="text-lg font-semibold text-emerald-400">{title}</h2>
+      <p className="mt-2 text-slate-400">{text}</p>
+      <p className="mt-4 text-sm text-slate-500">Coming soon</p>
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -29,14 +25,16 @@ export default function Dashboard() {
           Search a stock, save it to your watchlist, and revisit your past research.
         </p>
 
-        <section className="mt-10 grid gap-6 md:grid-cols-3">
-          {cards.map((c) => (
-            <div key={c.title} className="rounded-xl bg-slate-800 p-6">
-              <h2 className="text-lg font-semibold text-emerald-400">{c.title}</h2>
-              <p className="mt-2 text-slate-400">{c.text}</p>
-              <p className="mt-4 text-sm text-slate-500">Coming soon</p>
-            </div>
-          ))}
+        <section className="mt-10 grid gap-6 md:grid-cols-3 items-start">
+          <PlaceholderCard
+            title="Research History"
+            text="Your past stock research reports will appear here."
+          />
+          <Watchlist />
+          <PlaceholderCard
+            title="Preferences"
+            text="Choose your market (NSE, BSE, NASDAQ, NYSE) and default analysis period."
+          />
         </section>
       </main>
     </div>
