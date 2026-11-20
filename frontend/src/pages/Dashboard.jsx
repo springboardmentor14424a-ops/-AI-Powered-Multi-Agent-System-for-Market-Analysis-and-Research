@@ -1,19 +1,13 @@
+import { useState } from 'react'
 import Navbar from '../components/Navbar'
+import ResearchHistory from '../components/ResearchHistory'
 import Watchlist from '../components/Watchlist'
+import Preferences from '../components/Preferences'
 import { useAuth } from '../context/AuthContext'
-
-function PlaceholderCard({ title, text }) {
-  return (
-    <div className="rounded-xl bg-slate-800 p-6">
-      <h2 className="text-lg font-semibold text-emerald-400">{title}</h2>
-      <p className="mt-2 text-slate-400">{text}</p>
-      <p className="mt-4 text-sm text-slate-500">Coming soon</p>
-    </div>
-  )
-}
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const [refreshKey, setRefreshKey] = useState(0)
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
@@ -26,15 +20,9 @@ export default function Dashboard() {
         </p>
 
         <section className="mt-10 grid gap-6 md:grid-cols-3 items-start">
-          <PlaceholderCard
-            title="Research History"
-            text="Your past stock research reports will appear here."
-          />
-          <Watchlist />
-          <PlaceholderCard
-            title="Preferences"
-            text="Choose your market (NSE, BSE, NASDAQ, NYSE) and default analysis period."
-          />
+          <ResearchHistory refreshKey={refreshKey} />
+          <Watchlist onResearchStarted={() => setRefreshKey((k) => k + 1)} />
+          <Preferences />
         </section>
       </main>
     </div>

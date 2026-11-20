@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import api, { getErrorMessage } from '../api'
 
-export default function Watchlist() {
+export default function Watchlist({ onResearchStarted }) {
   const [items, setItems] = useState([])
   const [ticker, setTicker] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
 
@@ -26,6 +27,7 @@ export default function Watchlist() {
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
+    setNotice('')
     if (!ticker.trim()) return
     setAdding(true)
     try {
@@ -41,9 +43,22 @@ export default function Watchlist() {
 
   async function handleRemove(id) {
     setError('')
+    setNotice('')
     try {
       await api.delete(`/watchlist/${id}`)
       setItems(items.filter((item) => item.saved_stock_id !== id))
+    } catch (err) {
+      setError(getErrorMessage(err))
+    }
+  }
+
+  async function handleResearch(tickerSymbol) {
+    setError('')
+    setNotice('')
+    try {
+      await api.post('/research', { ticker: tickerSymbol })
+      setNotice(`Research task created for ${tickerSymbol}`)
+      if (onResearchStarted) onResearchStarted()
     } catch (err) {
       setError(getErrorMessage(err))
     }
@@ -74,6 +89,11 @@ export default function Watchlist() {
           {error}
         </p>
       )}
+      {notice && (
+        <p className="mt-3 rounded-lg bg-emerald-500/10 border border-emerald-500/40 px-3 py-2 text-sm text-emerald-300">
+          {notice}
+        </p>
+      )}
 
       <ul className="mt-4 space-y-2">
         {loading && <li className="text-slate-500 text-sm">Loading...</li>}
@@ -88,9 +108,8 @@ export default function Watchlist() {
             <span className="font-semibold">{item.ticker}</span>
             <div className="flex gap-2">
               <button
-                disabled
-                title="Research opens in a later module"
-                className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-500 cursor-not-allowed"
+                onClick={() => handleResearch(item.ticker)}
+                className="rounded-md bg-emerald-500 px-2 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400"
               >
                 Research
               </button>
