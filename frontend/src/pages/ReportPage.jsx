@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import Logo from "../components/Logo";
+import StockCharts from "../components/StockCharts";
 import StatusBadge, { formatDate, isActive } from "../components/StatusBadge";
 
 export default function ReportPage() {
@@ -52,6 +53,7 @@ export default function ReportPage() {
                 {task.market} · {task.analysis_period} · {formatDate(task.created_at)} <StatusBadge status={task.status} />
               </p>
             </section>
+            {task.status === "completed" && <StockCharts taskId={task.id} />}
             <section className="card">
               {task.status === "completed" && <pre className="report">{task.report}</pre>}
               {isActive(task.status) && <p>The agents are still working on this report. It will appear here automatically.</p>}

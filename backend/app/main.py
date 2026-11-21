@@ -10,7 +10,7 @@ from .config import settings
 from .database import init_db
 from .deps import get_current_user
 from .models import User
-from .routers import auth, oauth, preferences, research, stocks
+from .routers import auth, market_data, oauth, preferences, research, stocks
 from .schemas import UserOut
 from .workflow import mark_interrupted_tasks
 
@@ -73,6 +73,7 @@ app.include_router(auth.router)
 app.include_router(oauth.router)
 app.include_router(research.router)
 app.include_router(stocks.router)
+app.include_router(market_data.router)
 app.include_router(preferences.router)
 
 

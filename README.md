@@ -87,6 +87,26 @@ How accounts behave:
 - Apple requires HTTPS on a public domain (it rejects `localhost`), so test it after deploying. Google, Microsoft and X accept `http://localhost`.
 - Existing local databases: on start-up the app creates `oauth_accounts` and relaxes `password_hash` to allow NULL automatically.
 
+## Stock search and market data (Module 2, section 2)
+
+Open **Market data** in the dashboard header (`/market`).
+
+| Requirement | Where it lives |
+|---|---|
+| Search by company name or ticker | `GET /api/market/search?q=&market=`: the built-in list first, then a live Yahoo Finance search (skipped silently if offline) |
+| Historical prices, OHLCV | `GET /api/market/{market}/{ticker}/prices?period=1 year` (Open, High, Low, Close, Volume per day) |
+| Company profile | `GET /api/market/{market}/{ticker}/profile`: sector, industry, country, employees, market cap, summary |
+| Financial statements | `GET /api/market/{market}/{ticker}/financials`: annual income statement, balance sheet, cash flow (Yahoo Finance; US stocks fall back to SEC EDGAR when `SEC_USER_AGENT` is set) |
+| Sources and retrieval timestamps | Every response has `provenance` (source, UTC `retrieved_at`, `from_cache`). The time is when the provider was actually asked, and it is kept alongside cached files. Each dataset served is also logged per user in the `data_retrievals` table (`GET /api/market/retrievals`, "Data log" tab) |
+| Validate missing values, duplicate dates, inconsistent data | `app/data/validation.py`: duplicate dates, missing cells and rows with no close, high below low, open/close outside the high-low range, zero/negative prices, negative volume, zero-volume days, gaps over 7 days, one-day moves over 30%, future dates, stale data. The page lists each check, and bad rows are highlighted in the table and chart. Checks only report; they never change numbers (duplicates are removed on load and counted) |
+| NSE/BSE, NYSE/Nasdaq | `market` is one of `NSE`, `BSE`, `NASDAQ`, `NYSE`; tickers are checked per market (BSE uses 6-digit scrip codes) |
+
+If a provider can't be reached you get a clear 503 message instead of made-up data. Profile falls back to the built-in list (name and exchange only), and a note says what is missing.
+
+## Report charts
+
+A completed research report now shows charts above the text: closing price with 20/50/200-day moving averages (toggle them), volume, RSI (14) with the 30/70 lines, and MACD. Hover any chart for that day's open/high/low/close/volume. The data comes from `GET /api/research/{id}/chart` (owner-only), which uses the same indicator formulas as the Technical agent.
+
 ## Endpoints
 
 | Method | Path | Purpose |

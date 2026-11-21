@@ -3,10 +3,11 @@
 Order of preference:  fresh local cache -> Yahoo Finance (live) -> Kaggle NIFTY-50 CSV
 (offline copy, NSE only). Raises DataUnavailable if none works.
 """
+import json
 import logging
 import time
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
@@ -26,6 +27,9 @@ class PriceData:
     frame: pd.DataFrame  # DatetimeIndex (tz-naive, sorted), columns = COLUMNS
     symbol: str
     source: str
+    retrieved_at: str | None = None  # when the provider was actually asked (UTC, ISO 8601)
+    from_cache: bool = False
+    cleaning: dict = field(default_factory=dict)  # what _clean removed (duplicates, empty rows)
 
     @property
     def last_date(self) -> pd.Timestamp:
@@ -49,13 +53,20 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     if "volume" not in df.columns:
         df["volume"] = 0
     df = df[COLUMNS].apply(pd.to_numeric, errors="coerce")
+    raw_rows = len(df)
     idx = pd.to_datetime(df.index)
     if idx.tz is not None:
         idx = idx.tz_localize(None)  # keep the exchange's calendar date
     df.index = idx.normalize()
-    df = df[~df.index.duplicated(keep="last")].sort_index().dropna(subset=["close"])
+    deduped = df[~df.index.duplicated(keep="last")].sort_index()
+    df = deduped.dropna(subset=["close"])
     if df.empty:
         raise DataUnavailable("price data is empty")
+    df.attrs["cleaning"] = {
+        "raw_rows": raw_rows,
+        "duplicate_dates_removed": raw_rows - len(deduped),
+        "rows_without_close_removed": len(deduped) - len(df),
+    }
     return df
 
 
@@ -73,13 +84,32 @@ def _read_cache(symbol: str, need: int) -> pd.DataFrame | None:
         return None
 
 
-def _write_cache(symbol: str, need: int, df: pd.DataFrame) -> None:
+def _meta_path(symbol: str, need: int):
+    return _cache_path(symbol, need).with_suffix(".meta.json")
+
+
+def _write_cache(symbol: str, need: int, df: pd.DataFrame, source: str = "", retrieved_at: str = "") -> None:
     try:
         path = _cache_path(symbol, need)
         path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(path)
+        # Remember where the data came from and when, so a later cache hit still reports it.
+        _meta_path(symbol, need).write_text(
+            json.dumps({"source": source, "retrieved_at": retrieved_at, "cleaning": df.attrs.get("cleaning", {})})
+        )
     except OSError:
         log.warning("Could not write price cache for %s", symbol)
+
+
+def _read_meta(symbol: str, need: int) -> dict:
+    try:
+        return json.loads(_meta_path(symbol, need).read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def fetch_live(symbol: str, need: int) -> pd.DataFrame:
@@ -122,18 +152,33 @@ def get_prices(market: str, ticker: str, days: int) -> PriceData:
 
     cached = _read_cache(symbol, need)
     if cached is not None:
-        return PriceData(cached, symbol, "Yahoo Finance (cached today)")
+        meta = _read_meta(symbol, need)
+        cached.attrs["cleaning"] = meta.get("cleaning", {})
+        return PriceData(
+            cached,
+            symbol,
+            "Yahoo Finance (cached)",
+            retrieved_at=meta.get("retrieved_at") or None,
+            from_cache=True,
+            cleaning=meta.get("cleaning", {}),
+        )
 
     try:
         df = fetch_live(symbol, need)
-        _write_cache(symbol, need, df)
-        return PriceData(df, symbol, "Yahoo Finance (yfinance)")
+        stamp = _now()
+        _write_cache(symbol, need, df, "Yahoo Finance (yfinance)", stamp)
+        return PriceData(df, symbol, "Yahoo Finance (yfinance)", stamp, False, df.attrs.get("cleaning", {}))
     except DataUnavailable as live_error:
         if market == "NSE":
             try:
                 df = load_nifty50(ticker, need)
                 return PriceData(
-                    df, symbol, f"Kaggle NIFTY-50 dataset (offline copy, ends {df.index[-1]:%Y-%m-%d})"
+                    df,
+                    symbol,
+                    f"Kaggle NIFTY-50 dataset (offline copy, ends {df.index[-1]:%Y-%m-%d})",
+                    _now(),
+                    False,
+                    df.attrs.get("cleaning", {}),
                 )
             except DataUnavailable:
                 pass
@@ -146,7 +191,8 @@ def get_benchmark(market: str, days: int) -> PriceData:
     need = history_days(days)
     cached = _read_cache(symbol, need)
     if cached is not None:
-        return PriceData(cached, symbol, "Yahoo Finance (cached today)")
+        return PriceData(cached, symbol, "Yahoo Finance (cached)", from_cache=True)
     df = fetch_live(symbol, need)
-    _write_cache(symbol, need, df)
-    return PriceData(df, symbol, "Yahoo Finance (yfinance)")
+    stamp = _now()
+    _write_cache(symbol, need, df, "Yahoo Finance (yfinance)", stamp)
+    return PriceData(df, symbol, "Yahoo Finance (yfinance)", stamp)

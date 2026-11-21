@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import Logo from "../components/Logo";
@@ -112,6 +113,7 @@ export default function Dashboard() {
       <header className="nav">
         <Logo />
         <div className="nav-actions">
+          <Link className="btn btn-ghost" to="/market">Market data</Link>
           <span className="avatar" aria-hidden="true">
             {initials(user.full_name)}
           </span>

@@ -43,7 +43,7 @@ export default function SocialButtons({ verb = "Continue", onNotice }) {
   const [providers, setProviders] = useState(FALLBACK);
 
   useEffect(() => {
-    api("/api/auth/providers").then(setProviders).catch(() => {});
+    api("/auth/providers").then(setProviders).catch(() => {});
   }, []);
 
   const click = (p) => {

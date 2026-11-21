@@ -1,3 +1,5 @@
+import pandas as pd
+
 from app.database import SessionLocal
 from app.models import PROCESSING, ResearchTask, User
 from app.workflow import mark_interrupted_tasks
@@ -145,3 +147,36 @@ def test_interrupted_tasks_marked_failed_on_startup(client):
     mark_interrupted_tasks()
     t = client.get("/api/research").json()[0]
     assert t["status"] == "failed" and "restart" in t["error"]
+
+
+# ---------- chart data for the report page ----------
+
+def test_chart_endpoint_returns_prices_and_indicators_for_the_analysis_window(client):
+    from test_workspace import sign_up_and_in
+
+    h = sign_up_and_in(client, "chart@example.com")
+    r = client.post("/api/research", json={"company_name": "Tata Consultancy Services", "ticker": "TCS",
+                                            "market": "NSE", "analysis_period": "6 months"}, headers=h)
+    task_id = r.json()["id"]
+    d = client.get(f"/api/research/{task_id}/chart").json()
+    assert d["symbol"] == "TCS.NS" and d["period"] == "6 months"
+    row = d["rows"][-1]
+    assert {"date", "open", "high", "low", "close", "volume", "sma20", "sma50", "sma200", "rsi",
+            "macd", "macd_signal", "macd_hist"} <= set(row)
+    assert d["rows"][0]["date"] >= (pd.Timestamp.today() - pd.Timedelta(days=184)).strftime("%Y-%m-%d")
+    assert row["sma20"] is not None and 0 <= row["rsi"] <= 100  # warmed up on the full history
+    s = d["summary"]
+    assert s["last_close"] == row["close"] and s["high"] >= s["low"]
+    assert abs(s["period_return"] - (s["last_close"] / s["first_close"] - 1)) < 1e-5
+
+
+def test_chart_is_private_to_the_owner(client):
+    from test_workspace import sign_up_and_in
+
+    h = sign_up_and_in(client, "owner@example.com")
+    task_id = client.post("/api/research", json={"company_name": "Apple", "ticker": "AAPL", "market": "NASDAQ",
+                                                  "analysis_period": "1 year"}, headers=h).json()["id"]
+    sign_up_and_in(client, "other@example.com")
+    assert client.get(f"/api/research/{task_id}/chart").status_code == 404
+    client.cookies.clear()
+    assert client.get(f"/api/research/{task_id}/chart").status_code == 401

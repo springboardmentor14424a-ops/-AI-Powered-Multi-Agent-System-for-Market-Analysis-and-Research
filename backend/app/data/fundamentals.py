@@ -117,20 +117,24 @@ def _sec_get(url: str):
     return r.json()
 
 
-def get_edgar(ticker: str) -> Fundamentals:
+def get_edgar_facts(ticker: str) -> dict:
+    """The raw SEC 'companyfacts' document for a US ticker."""
     try:
         tickers = _cached_json("company_tickers.json", lambda: _sec_get("https://www.sec.gov/files/company_tickers.json"))
         cik = next((v["cik_str"] for v in tickers.values() if v["ticker"].upper() == ticker.upper()), None)
         if cik is None:
             raise DataUnavailable(f"{ticker} not found in the SEC company list")
         url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{int(cik):010d}.json"
-        facts = _cached_json(f"facts_{int(cik):010d}.json", lambda: _sec_get(url))
+        return _cached_json(f"facts_{int(cik):010d}.json", lambda: _sec_get(url))
     except DataUnavailable:
         raise
     except Exception as e:
         log.warning("SEC EDGAR request failed for %s: %s", ticker, e)
         raise DataUnavailable("SEC EDGAR could not be reached.") from e
-    return parse_companyfacts(facts)
+
+
+def get_edgar(ticker: str) -> Fundamentals:
+    return parse_companyfacts(get_edgar_facts(ticker))
 
 
 # ---------------------------------------------------------------- Yahoo Finance

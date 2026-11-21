@@ -2,6 +2,7 @@ import { Link, Route, Routes } from "react-router-dom";
 import { GuestRoute, ProtectedRoute } from "./components/RouteGuards";
 import Dashboard from "./pages/Dashboard";
 import Landing from "./pages/Landing";
+import MarketData from "./pages/MarketData";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ReportPage from "./pages/ReportPage";
@@ -45,6 +46,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/market"
+        element={
+          <ProtectedRoute>
+            <MarketData />
           </ProtectedRoute>
         }
       />

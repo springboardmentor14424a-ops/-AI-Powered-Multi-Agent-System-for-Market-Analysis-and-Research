@@ -48,6 +48,29 @@ class OAuthAccount(Base):
     )
 
 
+class DataRetrieval(Base):
+    """Audit trail: which dataset was served to a user, from which source, and when the
+    provider was actually asked (retrieved_at), not just when the user looked."""
+
+    __tablename__ = "data_retrievals"
+
+    id: Mapped[int] = mapped_column("retrieval_id", Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    market: Mapped[str] = mapped_column(String(20), nullable=False)
+    ticker: Mapped[str] = mapped_column(String(12), nullable=False)
+    dataset: Mapped[str] = mapped_column(String(20), nullable=False)  # prices | profile | financials
+    source: Mapped[str] = mapped_column(String(200), nullable=False)
+    retrieved_at: Mapped[str | None] = mapped_column(String(25), nullable=True)  # ISO 8601 UTC
+    from_cache: Mapped[bool] = mapped_column(nullable=False, default=False)
+    rows: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quality_status: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class ResearchTask(Base):
     """One stock-research request. Always belongs to exactly one user."""
 
