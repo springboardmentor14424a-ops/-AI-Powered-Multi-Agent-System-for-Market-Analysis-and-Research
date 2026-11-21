@@ -10,7 +10,8 @@ from schemas.auth import UserPreferencesUpdate, UserPreferencesResponse
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
 
 
-@router.get("/", response_model=UserPreferencesResponse)
+@router.get("", response_model=UserPreferencesResponse)
+@router.get("/", response_model=UserPreferencesResponse, include_in_schema=False)
 async def get_preferences(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -35,7 +36,8 @@ async def get_preferences(
     return UserPreferencesResponse.model_validate(prefs)
 
 
-@router.put("/", response_model=UserPreferencesResponse)
+@router.put("", response_model=UserPreferencesResponse)
+@router.put("/", response_model=UserPreferencesResponse, include_in_schema=False)
 async def update_preferences(
     payload: UserPreferencesUpdate,
     current_user: User = Depends(get_current_user),

@@ -10,7 +10,8 @@ from schemas.auth import SavedStockCreate, SavedStockResponse
 router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
 
-@router.get("/", response_model=list[SavedStockResponse])
+@router.get("", response_model=list[SavedStockResponse])
+@router.get("/", response_model=list[SavedStockResponse], include_in_schema=False)
 async def list_watchlist(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -25,7 +26,8 @@ async def list_watchlist(
     return [SavedStockResponse.model_validate(s) for s in stocks]
 
 
-@router.post("/", response_model=SavedStockResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SavedStockResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=SavedStockResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def add_to_watchlist(
     payload: SavedStockCreate,
     current_user: User = Depends(get_current_user),

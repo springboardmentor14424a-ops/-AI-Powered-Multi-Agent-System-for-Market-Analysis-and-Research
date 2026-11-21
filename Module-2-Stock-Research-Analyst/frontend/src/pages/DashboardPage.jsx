@@ -4,10 +4,11 @@ import toast from 'react-hot-toast';
 import {
   TrendingUp, LogOut, Plus, Search, X, ChevronDown,
   BookOpen, Star, Settings, FileText, Trash2, Eye,
-  BarChart2, Clock, CheckCircle, AlertCircle, Loader2,
+  BarChart2, Clock, CheckCircle, AlertCircle, Loader2, LineChart
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import MarketDataTab from '../components/MarketDataTab';
 
 /* ─── Status Badge ─── */
 function StatusBadge({ status }) {
@@ -153,22 +154,68 @@ function ResearchHistoryTab() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [reportModal, setReportModal] = useState(null); // { taskId, companyName, reportContent }
+  const [loadingReport, setLoadingReport] = useState(false);
 
-  useEffect(() => {
+  const fetchTasks = () => {
     api.get('/research/tasks')
       .then((r) => setTasks(r.data))
       .catch(() => toast.error('Failed to load research tasks.'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTasks();
   }, []);
 
   const handleNewResearch = async (form) => {
     try {
       const res = await api.post('/research/tasks', form);
       setTasks((prev) => [res.data, ...prev]);
-      toast.success('Research task created!');
+      toast.success('Research task created! Processing will begin shortly...');
+
+      // Poll for status updates (the backend processes in background)
+      const pollInterval = setInterval(async () => {
+        try {
+          const updated = await api.get('/research/tasks');
+          setTasks(updated.data);
+          const thisTask = updated.data.find((t) => t.id === res.data.id);
+          if (thisTask && (thisTask.status === 'Completed' || thisTask.status === 'Failed')) {
+            clearInterval(pollInterval);
+            if (thisTask.status === 'Completed') {
+              toast.success(`Research on ${thisTask.company_name} completed!`);
+            } else {
+              toast.error(`Research on ${thisTask.company_name} failed.`);
+            }
+          }
+        } catch {
+          clearInterval(pollInterval);
+        }
+      }, 3000);
+
+      // Clear poll after 60s max
+      setTimeout(() => clearInterval(pollInterval), 60000);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create task.');
       throw err;
+    }
+  };
+
+  const viewReport = async (task) => {
+    setLoadingReport(true);
+    try {
+      const res = await api.get(`/research/tasks/${task.id}/report`);
+      setReportModal({
+        taskId: task.id,
+        companyName: task.company_name,
+        ticker: task.ticker,
+        reportContent: res.data.report_content,
+        generatedAt: res.data.generated_at,
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to load report.');
+    } finally {
+      setLoadingReport(false);
     }
   };
 
@@ -184,13 +231,22 @@ function ResearchHistoryTab() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold text-white">Research History</h2>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Research
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchTasks}
+            className="text-gray-400 hover:text-emerald-400 transition-colors p-2"
+            title="Refresh"
+          >
+            <BarChart2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Research
+          </button>
+        </div>
       </div>
 
       {tasks.length === 0 ? (
@@ -232,12 +288,26 @@ function ResearchHistoryTab() {
                     </td>
                     <td className="px-4 py-3">
                       {t.status === 'Completed' ? (
-                        <button className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-xs font-medium transition-colors">
+                        <button
+                          onClick={() => viewReport(t)}
+                          disabled={loadingReport}
+                          className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-xs font-medium transition-colors"
+                        >
                           <Eye className="w-3.5 h-3.5" />
                           View Report
                         </button>
+                      ) : t.status === 'Processing' ? (
+                        <span className="text-emerald-400 flex items-center gap-1 text-xs font-medium">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Processing...
+                        </span>
+                      ) : t.status === 'Failed' ? (
+                        <span className="text-red-400 text-xs font-medium">Failed</span>
                       ) : (
-                        <span className="text-gray-600 text-xs">—</span>
+                        <span className="text-yellow-400 flex items-center gap-1 text-xs font-medium">
+                          <Clock className="w-3.5 h-3.5" />
+                          Queued
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -254,12 +324,76 @@ function ResearchHistoryTab() {
           onSubmit={handleNewResearch}
         />
       )}
+
+      {/* Research Report Modal */}
+      {reportModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-emerald-900/50 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-emerald-900/30 flex-shrink-0">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-400" />
+                Research Report — {reportModal.companyName} ({reportModal.ticker})
+              </h2>
+              <button onClick={() => setReportModal(null)} className="text-gray-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="prose prose-invert prose-sm max-w-none">
+                {reportModal.reportContent.split('\n').map((line, idx) => {
+                  if (line.startsWith('# ')) {
+                    return <h1 key={idx} className="text-xl font-bold text-white mt-4 mb-2">{line.substring(2)}</h1>;
+                  }
+                  if (line.startsWith('## ')) {
+                    return <h2 key={idx} className="text-base font-bold text-emerald-400 mt-5 mb-2 border-b border-emerald-900/30 pb-1">{line.substring(3)}</h2>;
+                  }
+                  if (line.startsWith('**') && line.endsWith('**')) {
+                    return <p key={idx} className="text-gray-300 font-medium text-sm mb-1">{line.replace(/\*\*/g, '')}</p>;
+                  }
+                  if (line.startsWith('- **')) {
+                    const parts = line.substring(2).split(':** ');
+                    if (parts.length === 2) {
+                      return (
+                        <div key={idx} className="flex items-start gap-2 text-sm py-0.5">
+                          <span className="text-emerald-400 mt-0.5">•</span>
+                          <span>
+                            <span className="text-white font-medium">{parts[0].replace(/\*\*/g, '')}:</span>{' '}
+                            <span className="text-gray-300">{parts[1].replace(/\*\*/g, '')}</span>
+                          </span>
+                        </div>
+                      );
+                    }
+                  }
+                  if (line.startsWith('---')) {
+                    return <hr key={idx} className="border-emerald-900/30 my-4" />;
+                  }
+                  if (line.startsWith('*') && line.endsWith('*')) {
+                    return <p key={idx} className="text-gray-500 text-xs italic mt-2">{line.replace(/\*/g, '')}</p>;
+                  }
+                  if (line.trim() === '') {
+                    return <div key={idx} className="h-2" />;
+                  }
+                  return <p key={idx} className="text-gray-300 text-sm leading-relaxed">{line}</p>;
+                })}
+              </div>
+            </div>
+            <div className="p-4 border-t border-emerald-900/30 flex-shrink-0 flex justify-end">
+              <button
+                onClick={() => setReportModal(null)}
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── Tab 2: Watchlist ─── */
-function WatchlistTab() {
+function WatchlistTab({ onSelectForOHLCV }) {
   const [query, setQuery] = useState('');
   const [market, setMarket] = useState('NASDAQ');
   const [searchResults, setSearchResults] = useState([]);
@@ -304,7 +438,11 @@ function WatchlistTab() {
 
   const addToWatchlist = async (stock) => {
     try {
-      const res = await api.post('/watchlist', stock);
+      const res = await api.post('/watchlist', {
+        ticker: stock.ticker,
+        company_name: stock.company_name,
+        market: stock.market,
+      });
       setWatchlist((prev) => [res.data, ...prev]);
       toast.success(`${stock.ticker} added to watchlist!`);
     } catch (err) {
@@ -440,6 +578,14 @@ function WatchlistTab() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button
+                            onClick={() => onSelectForOHLCV && onSelectForOHLCV(s)}
+                            className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-xs font-medium transition-colors"
+                          >
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            OHLCV
+                          </button>
+                          <span className="text-gray-700">|</span>
+                          <button
                             onClick={() => removeFromWatchlist(s.id)}
                             className="text-red-400 hover:text-red-300 flex items-center gap-1 text-xs font-medium transition-colors"
                           >
@@ -554,18 +700,47 @@ function PreferencesTab() {
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('history');
+  const [activeTab, setActiveTab] = useState('market-data');
+  const [selectedStockForOHLCV, setSelectedStockForOHLCV] = useState(null);
+  const [showResearchModal, setShowResearchModal] = useState(false);
+  const [researchPrefill, setResearchPrefill] = useState(null);
   const [tasks, setTasks] = useState([]);
 
-  useEffect(() => {
+  const refreshTasks = () => {
     api.get('/research/tasks')
       .then((r) => setTasks(r.data))
       .catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => {
+    refreshTasks();
+  }, [activeTab]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleSelectForOHLCV = (stock) => {
+    setSelectedStockForOHLCV(stock.ticker);
+    setActiveTab('market-data');
+  };
+
+  const handleStartResearch = (stock) => {
+    setResearchPrefill(stock);
+    setShowResearchModal(true);
+  };
+
+  const handleNewResearchSubmit = async (form) => {
+    try {
+      const res = await api.post('/research/tasks', form);
+      setTasks((prev) => [res.data, ...prev]);
+      toast.success('Research task started! Generating analysis report...');
+      setActiveTab('history');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to create task.');
+      throw err;
+    }
   };
 
   const stats = {
@@ -576,6 +751,7 @@ export default function DashboardPage() {
   };
 
   const tabs = [
+    { id: 'market-data', label: 'Stock Search & OHLCV', icon: TrendingUp },
     { id: 'history', label: 'Research History', icon: BookOpen },
     { id: 'watchlist', label: 'Watchlist', icon: Star },
     { id: 'preferences', label: 'Preferences', icon: Settings },
@@ -613,7 +789,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
             Welcome back, <span className="text-emerald-400">{user?.full_name?.split(' ')[0] || 'Investor'}</span>
           </h1>
-          <p className="text-gray-400 text-sm">Here's your research portfolio at a glance.</p>
+          <p className="text-gray-400 text-sm">Real-time stock search, historical market analysis, and research platform.</p>
         </div>
 
         {/* Stats */}
@@ -644,10 +820,26 @@ export default function DashboardPage() {
 
         {/* Tab Content */}
         <div className="bg-gray-900/40 border border-emerald-900/30 rounded-2xl p-6">
+          {activeTab === 'market-data' && (
+            <MarketDataTab
+              key={selectedStockForOHLCV}
+              initialTicker={selectedStockForOHLCV}
+              onStartResearch={handleStartResearch}
+            />
+          )}
           {activeTab === 'history' && <ResearchHistoryTab />}
-          {activeTab === 'watchlist' && <WatchlistTab />}
+          {activeTab === 'watchlist' && <WatchlistTab onSelectForOHLCV={handleSelectForOHLCV} />}
           {activeTab === 'preferences' && <PreferencesTab />}
         </div>
+
+        {/* Research Modal */}
+        {showResearchModal && (
+          <NewResearchModal
+            prefill={researchPrefill}
+            onClose={() => setShowResearchModal(false)}
+            onSubmit={handleNewResearchSubmit}
+          />
+        )}
       </main>
     </div>
   );

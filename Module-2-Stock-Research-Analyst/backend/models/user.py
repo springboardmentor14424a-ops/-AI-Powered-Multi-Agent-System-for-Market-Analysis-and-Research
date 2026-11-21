@@ -7,7 +7,10 @@ from typing import Optional, List
 from sqlalchemy import (
     String,
     Integer,
+    BigInteger,
+    Float,
     Text,
+    JSON,
     ForeignKey,
     DateTime,
     func,
@@ -141,3 +144,68 @@ class UserPreferences(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="preferences")
+
+
+class StockOHLCV(Base):
+    __tablename__ = "stock_ohlcv"
+    __table_args__ = (
+        UniqueConstraint("ticker", "interval", "timestamp", name="uq_stock_ohlcv_ticker_interval_timestamp"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    company_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    market: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    period: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    interval: Mapped[str] = mapped_column(String(20), nullable=False, default="1d")
+    timestamp: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    open: Mapped[float] = mapped_column(Float, nullable=False)
+    high: Mapped[float] = mapped_column(Float, nullable=False)
+    low: Mapped[float] = mapped_column(Float, nullable=False)
+    close: Mapped[float] = mapped_column(Float, nullable=False)
+    volume: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    source: Mapped[str] = mapped_column(String(100), nullable=False, default="Yahoo Finance")
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class CompanyFinancialsProfile(Base):
+    __tablename__ = "company_financials_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    company_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    market: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    sector: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    profile_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    financials_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    data_source: Mapped[str] = mapped_column(String(100), nullable=False, default="Yahoo Finance")
+    retrieval_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class DataRetrievalAuditLog(Base):
+    __tablename__ = "data_retrieval_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    data_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    data_source: Mapped[str] = mapped_column(String(100), nullable=False, default="Yahoo Finance")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="SUCCESS")
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    retrieval_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    metadata_info: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+

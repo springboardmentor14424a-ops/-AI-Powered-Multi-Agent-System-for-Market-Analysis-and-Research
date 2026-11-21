@@ -149,24 +149,5 @@ class UserPreferencesResponse(BaseModel):
 
 # ─── Stock Schemas ───────────────────────────────────────────────────────────
 
-class StockSearchResult(BaseModel):
-    ticker: str
-    company_name: str
-    market: str
-    current_price: Optional[float] = None
-    currency: Optional[str] = None
-    sector: Optional[str] = None
+from schemas.stock import StockSearchResult, StockQuoteResponse
 
-
-class StockQuoteResponse(BaseModel):
-    ticker: Optional[str] = None
-    company_name: Optional[str] = None
-    current_price: Optional[float] = None
-    previous_close: Optional[float] = None
-    day_change: Optional[float] = None
-    day_change_pct: Optional[float] = None
-    volume: Optional[int] = None
-    market_cap: Optional[int] = None
-    pe_ratio: Optional[float] = None
-    sector: Optional[str] = None
-    currency: Optional[str] = None
