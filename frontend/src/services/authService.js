@@ -100,4 +100,25 @@ export const updatePreferences = async (preferences) => {
   return (await API.put("/preferences/", preferences)).data;
 };
 
+// Retrieve a company's profile information
+export const getCompanyProfile = async (ticker, market) => {
+  const response = await API.get("/company/profile", {
+    params: { ticker, market },
+  });
+  return response.data;
+};
+
+// Retrieve a financial statement (income / balance_sheet / cashflow)
+export const getFinancialStatement = async (
+  ticker,
+  market,
+  statement = "income",
+  frequency = "annual"
+) => {
+  const response = await API.get("/company/financials", {
+    params: { ticker, market, statement, frequency },
+  });
+  return response.data;
+};
+
 export default API;

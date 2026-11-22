@@ -1,8 +1,6 @@
-
 from fastapi import APIRouter, HTTPException, Query
 
 from app.services.yahoo_finance import get_stock_history
-from app.services.tejhq import get_bse_stock_history
 from app.services.stock_search import search_stocks
 
 router = APIRouter(
@@ -18,7 +16,7 @@ def get_stock_history_api(
     period: str = Query("1y")
 ):
     allowed_periods = ["1mo", "3mo", "6mo", "1y", "5y"]
-    allowed_markets = ["NSE", "BSE"]
+    allowed_markets = ["NSE", "BSE", "NASDAQ", "NYSE"]
 
     # Validate the market
     market = market.strip().upper()
@@ -26,7 +24,7 @@ def get_stock_history_api(
     if market not in allowed_markets:
         raise HTTPException(
             status_code=400,
-            detail="Invalid market. Choose NSE or BSE."
+            detail="Invalid market. Choose NSE, BSE, NASDAQ or NYSE."
         )
 
     # Validate the analysis period
@@ -38,25 +36,26 @@ def get_stock_history_api(
 
     ticker = ticker.strip().upper()
 
-    # Select the correct data provider
+    # Normalise ticker symbol for Yahoo Finance
     if market == "NSE":
-
-        # Ensure Yahoo Finance receives the NSE suffix
         if ticker.endswith(".BO"):
             ticker = ticker[:-3]
-
         if not ticker.endswith(".NS"):
             ticker = ticker + ".NS"
 
-        result = get_stock_history(ticker, period)
-
-    else:
-
-        # TejHQ expects the BSE trading symbol without an exchange suffix
-        if ticker.endswith(".BO") or ticker.endswith(".NS"):
+    elif market == "BSE":
+        if ticker.endswith(".NS"):
             ticker = ticker[:-3]
+        if not ticker.endswith(".BO"):
+            ticker = ticker + ".BO"
 
-        result = get_bse_stock_history(ticker, period)
+    else:  # NASDAQ or NYSE
+        if ticker.endswith(".NS") or ticker.endswith(".BO"):
+            ticker = ticker[:-3]
+        ticker = ticker.split(".")[0]
+
+    # Retrieve historical OHLCV data directly via yfinance
+    result = get_stock_history(ticker, period)
 
     if not result["success"]:
         raise HTTPException(
@@ -67,6 +66,7 @@ def get_stock_history_api(
     result["market"] = market
 
     return result
+
 
 @router.get("/search")
 def search_stocks_api(

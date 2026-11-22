@@ -14,7 +14,7 @@ function DashboardLayout({ user, onLogout, children }) {
     <div className="terminal-layout">
       <aside className="terminal-sidebar">
         <div className="sidebar-brand">
-          Stock<span>Intel</span>
+          Stock<span>ly</span>
         </div>
 
         <div className="sidebar-divider" />
@@ -69,7 +69,7 @@ function DashboardLayout({ user, onLogout, children }) {
 
       <div className="terminal-main">
         <header className="terminal-topbar">
-          <span>STOCKINTEL / WORKSPACE</span>
+          <span>STOCKLY / WORKSPACE</span>
           <span className="terminal-user-name">
             {user?.full_name}
           </span>

@@ -44,12 +44,12 @@ def update_preferences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if preferences.preferred_market not in [
-        "NSE", "BSE"
+    if preferences.preferred_market and preferences.preferred_market not in [
+        "NSE", "BSE", "NASDAQ", "NYSE"
     ]:
         raise HTTPException(
             status_code=400,
-            detail="Market must be NSE or BSE"
+            detail="Market must be NSE, BSE, NASDAQ or NYSE"
         )
 
     if preferences.preferred_analysis_period not in [

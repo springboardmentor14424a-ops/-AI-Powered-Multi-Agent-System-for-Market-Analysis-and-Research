@@ -199,7 +199,7 @@ def google_login(
                     detail="Unable to create Google account"
                 )
 
-    # Step 5: Generate StockIntel JWT
+    # Step 5: Generate Stockly JWT
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )

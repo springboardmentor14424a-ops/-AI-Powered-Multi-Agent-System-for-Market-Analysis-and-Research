@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, research, stocks, watchlist, preferences
+from app.routers import auth, research, stocks, watchlist, preferences, company
 
 app = FastAPI(
     title="Multi-Agent Stock Research Analyst API",
@@ -53,6 +53,11 @@ app.include_router(
     preferences.router,
     prefix="/preferences",
     tags=["Preferences"]
+)
+
+# Company profile and financial statements routes
+app.include_router(
+    company.router
 )
 
 

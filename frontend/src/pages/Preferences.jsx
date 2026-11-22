@@ -44,10 +44,14 @@ function Preferences() {
         const data = await getPreferences();
 
         setPreferences({
-          ...DEFAULTS,
-          ...data,
-          preferred_indicators:
-            data.preferred_indicators || DEFAULTS.preferred_indicators,
+          preferred_market: data.preferred_market ?? "",
+          preferred_analysis_period: data.preferred_analysis_period ?? "",
+          preferred_indicators: Array.isArray(data.preferred_indicators)
+            ? data.preferred_indicators
+            : [],
+          preferred_news_window: data.preferred_news_window ?? "",
+          preferred_risk_view: data.preferred_risk_view ?? "",
+          preferred_report_format: data.preferred_report_format ?? "",
         });
 
       } catch (err) {
@@ -71,7 +75,7 @@ function Preferences() {
   const updatePreference = (key, value) => {
     setPreferences((previous) => ({
       ...previous,
-      [key]: value,
+      [key]: previous[key] === value ? "" : value,
     }));
 
     setDirty(true);
@@ -80,11 +84,9 @@ function Preferences() {
   };
 
   const toggleIndicator = (indicator) => {
-    const current = preferences.preferred_indicators;
+    const current = preferences.preferred_indicators || [];
 
     if (current.includes(indicator)) {
-      if (current.length === 1) return;
-
       updatePreference(
         "preferred_indicators",
         current.filter((item) => item !== indicator)
@@ -121,12 +123,16 @@ function Preferences() {
 
   const handleReset = () => {
     setPreferences({
-      ...DEFAULTS,
-      preferred_indicators: [...DEFAULTS.preferred_indicators],
+      preferred_market: "",
+      preferred_analysis_period: "",
+      preferred_indicators: [],
+      preferred_news_window: "",
+      preferred_risk_view: "",
+      preferred_report_format: "",
     });
 
     setDirty(true);
-    setMessage("");
+    setMessage("All preferences unselected.");
     setError("");
   };
 
@@ -139,9 +145,18 @@ function Preferences() {
   const market = preferences.preferred_market;
 
   const tickerExample =
-    market === "NSE" ? "RELIANCE.NS" : "RELIANCE.BO";
+    market === "NSE"
+      ? "RELIANCE.NS"
+      : market === "BSE"
+      ? "TCS.BO"
+      : market === "NASDAQ"
+      ? "AAPL"
+      : market === "NYSE"
+      ? "KO"
+      : "— (None selected)";
 
-  const currency = "INR";
+  const currency =
+    market === "NASDAQ" || market === "NYSE" ? "USD ($)" : "INR (₹)";
 
   if (!user) return null;
 
@@ -150,7 +165,7 @@ function Preferences() {
       key: "preferred_market",
       title: "Preferred Market",
       help: "Choose the stock exchange for your research.",
-      values: ["NSE", "BSE"],
+      values: ["NSE", "BSE", "NASDAQ", "NYSE"],
     },
     {
       key: "preferred_analysis_period",
@@ -299,7 +314,7 @@ function Preferences() {
                   onClick={handleReset}
                   disabled={saving}
                 >
-                  Reset to Defaults
+                  Set as Default
                 </button>
               </div>
 
@@ -340,32 +355,36 @@ function Preferences() {
                     (item) =>
                       typeof item !== "string" &&
                       item.value === preferences.preferred_analysis_period
-                  )?.label}
+                  )?.label || "— (Unselected)"}
                 </strong>
               </div>
 
               <div className="settings-preview-row">
                 <span>Indicators</span>
                 <strong>
-                  {preferences.preferred_indicators.join(", ")}
+                  {preferences.preferred_indicators?.length
+                    ? preferences.preferred_indicators.join(", ")
+                    : "— (None selected)"}
                 </strong>
               </div>
 
               <div className="settings-preview-row">
                 <span>News</span>
                 <strong>
-                  Last {preferences.preferred_news_window}
+                  {preferences.preferred_news_window
+                    ? `Last ${preferences.preferred_news_window}`
+                    : "— (Unselected)"}
                 </strong>
               </div>
 
               <div className="settings-preview-row">
                 <span>Risk view</span>
-                <strong>{preferences.preferred_risk_view}</strong>
+                <strong>{preferences.preferred_risk_view || "— (Unselected)"}</strong>
               </div>
 
               <div className="settings-preview-row">
                 <span>Export</span>
-                <strong>{preferences.preferred_report_format}</strong>
+                <strong>{preferences.preferred_report_format || "— (Unselected)"}</strong>
               </div>
 
               <p className="settings-note">

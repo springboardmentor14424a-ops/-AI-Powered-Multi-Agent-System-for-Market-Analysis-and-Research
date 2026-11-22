@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Clock } from "lucide-react";
 
 import DashboardLayout from "../components/DashboardLayout";
 
@@ -74,6 +75,28 @@ function History() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  const formatRetrievedAt = (date) => {
+    if (!date) return "—";
+
+    try {
+      const formatted = new Date(date).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const withUpperAmPm = formatted.replace(/\b(am|pm)\b/i, (m) =>
+        m.toUpperCase()
+      );
+      return `${withUpperAmPm} IST`;
+    } catch {
+      return "—";
+    }
   };
 
   const getStatusClass = (status) => {
@@ -196,6 +219,7 @@ function History() {
                     <th>Market</th>
                     <th>Analysis Period</th>
                     <th>Research Date</th>
+                    <th>Data Retrieved</th>
                     <th>Status</th>
                     <th>Report</th>
                   </tr>
@@ -214,6 +238,17 @@ function History() {
                       <td>{task.market}</td>
                       <td>{task.analysis_period}</td>
                       <td>{formatDate(task.started_at)}</td>
+
+                      <td>
+                        {task.data_retrieved_at ? (
+                          <div className="history-retrieval-cell">
+                            <Clock size={13} className="history-retrieval-icon" />
+                            <span>{formatRetrievedAt(task.data_retrieved_at)}</span>
+                          </div>
+                        ) : (
+                          <span className="history-not-retrieved">—</span>
+                        )}
+                      </td>
 
                       <td>
                         <span
@@ -266,7 +301,7 @@ function History() {
             </button>
 
             <p className="eyebrow">
-              STOCKINTEL RESEARCH REPORT
+              STOCKLY RESEARCH REPORT
             </p>
 
             <h2>Research Report</h2>

@@ -26,7 +26,7 @@ function Settings() {
   const settingsOptions = [
     {
       title: "Theme",
-      description: "Customise the appearance of your StockIntel workspace.",
+      description: "Customise the appearance of your Stockly workspace.",
       icon: "◐",
       action: () => {},
     },
@@ -52,7 +52,7 @@ function Settings() {
         <div className="settings-home-header">
           <p className="eyebrow">PERSONAL SETTINGS</p>
           <h1>Settings</h1>
-          <p>Manage your StockIntel workspace and preferences.</p>
+          <p>Manage your Stockly workspace and preferences.</p>
         </div>
 
         <div className="settings-home-grid">

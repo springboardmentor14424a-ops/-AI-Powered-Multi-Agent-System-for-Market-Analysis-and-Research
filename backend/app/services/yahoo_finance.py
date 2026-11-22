@@ -1,6 +1,10 @@
 
 import yfinance as yf
 import pandas as pd
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+DATA_SOURCE = "Yahoo Finance (via yfinance)"
 
 
 def get_stock_history(ticker: str, period: str = "1y"):
@@ -22,6 +26,9 @@ def get_stock_history(ticker: str, period: str = "1y"):
                 "message": f"No stock data found for {ticker}",
                 "data": []
             }
+
+        # Capture retrieval timestamp right after a successful fetch
+        retrieved_at = datetime.now(timezone.utc).isoformat()
 
         # Validate missing values
         data = data.dropna(
@@ -55,7 +62,9 @@ def get_stock_history(ticker: str, period: str = "1y"):
             "ticker": ticker,
             "period": period,
             "total_records": len(records),
-            "data": records
+            "data": records,
+            "retrieved_at": retrieved_at,
+            "data_source": DATA_SOURCE
         }
 
     except Exception as e:

@@ -60,3 +60,8 @@ class ResearchTask(Base):
         DateTime(timezone=True),
         nullable=True
     )
+
+    data_retrieved_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )

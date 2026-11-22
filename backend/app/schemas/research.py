@@ -10,6 +10,7 @@ class ResearchTaskCreate(BaseModel):
     ticker: str = Field(min_length=1, max_length=20)
     market: str = Field(min_length=1, max_length=100)
     analysis_period: str = Field(min_length=1, max_length=100)
+    data_retrieved_at: datetime | None = None
 
 
 class ResearchTaskResponse(BaseModel):
@@ -21,6 +22,7 @@ class ResearchTaskResponse(BaseModel):
     status: Literal["PENDING", "PROCESSING", "COMPLETED", "FAILED"]
     started_at: datetime
     completed_at: datetime | None = None
+    data_retrieved_at: datetime | None = None
 
     class Config:
         from_attributes = True

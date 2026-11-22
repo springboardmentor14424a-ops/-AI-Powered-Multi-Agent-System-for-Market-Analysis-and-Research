@@ -126,3 +126,28 @@ def fail_research_task(
     db.refresh(task)
 
     return task
+
+
+def update_task_data_retrieval(
+    db: Session,
+    task_id: UUID,
+    retrieved_at: datetime
+):
+    """
+    Update the data retrieval timestamp for an existing research task.
+    """
+    task = db.query(ResearchTask).filter(
+        ResearchTask.task_id == task_id
+    ).first()
+
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Research task not found"
+        )
+
+    task.data_retrieved_at = retrieved_at
+    db.commit()
+    db.refresh(task)
+
+    return task

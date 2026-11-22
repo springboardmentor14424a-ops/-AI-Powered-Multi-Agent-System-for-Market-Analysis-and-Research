@@ -517,7 +517,7 @@ function Dashboard() {
         <div className="db-modal-overlay" onClick={() => setSelectedReport(null)}>
           <div className="db-modal" onClick={(e) => e.stopPropagation()}>
             <button className="db-modal-close" onClick={() => setSelectedReport(null)}>✕</button>
-            <p className="db-eyebrow">STOCKINTEL RESEARCH REPORT</p>
+            <p className="db-eyebrow">STOCKLY RESEARCH REPORT</p>
             <h2 className="db-modal-title">Research Report</h2>
             <p className="db-modal-summary">{selectedReport.summary}</p>
             <div className="db-modal-content">{selectedReport.report_content}</div>

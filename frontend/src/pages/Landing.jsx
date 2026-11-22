@@ -6,7 +6,7 @@ function Landing() {
   return (
     <div className="landing-page">
       <nav className="navbar">
-        <h2 className="brand">Stock<span>Intel</span></h2>
+        <h2 className="brand">Stock<span>ly</span></h2>
 
         <div className="nav-links">
           <Link to="/login">Sign In</Link>
