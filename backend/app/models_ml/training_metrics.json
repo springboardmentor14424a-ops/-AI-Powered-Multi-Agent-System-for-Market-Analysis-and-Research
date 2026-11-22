@@ -1,0 +1,45 @@
+{
+  "fundamental_analysis_agent": {
+    "eps_regression": {
+      "r2_score": 0.5216,
+      "rmse": 2.6999
+    },
+    "health_classification": {
+      "accuracy": 0.9936,
+      "classes": [
+        "Distressed",
+        "Stable",
+        "Strong"
+      ]
+    }
+  },
+  "technical_analysis_agent": {
+    "direction_classification": {
+      "accuracy": 0.5564,
+      "f1_score": 0.5164
+    },
+    "features_used": [
+      "price_to_sma20",
+      "sma5_to_sma20",
+      "volatility_20",
+      "return_1d",
+      "return_5d",
+      "volume_ratio",
+      "rsi_14",
+      "macd",
+      "macd_signal"
+    ]
+  },
+  "risk_analysis_agent": {
+    "risk_classification": {
+      "accuracy": 0.505,
+      "risk_levels": [
+        "Low Risk",
+        "Moderate Risk",
+        "High Risk"
+      ]
+    },
+    "volatility_regressor": "Trained",
+    "tickers_profiled": 501
+  }
+}

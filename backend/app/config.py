@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "stockmind-super-secret-key-change-in-production-2024"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    GOOGLE_CLIENT_ID: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

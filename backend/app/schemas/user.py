@@ -14,6 +14,17 @@ class UserLogin(BaseModel):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: str  # The cryptographically signed Google ID Token (JWT)
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     id: int
     full_name: str

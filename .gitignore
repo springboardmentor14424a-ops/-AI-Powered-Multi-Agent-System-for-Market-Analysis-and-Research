@@ -50,3 +50,9 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Large raw datasets (>50MB) - keep repo fast and under GitHub limits
+data/*.csv
+!data/fundamentals.csv
+!data/securities.csv
+
+

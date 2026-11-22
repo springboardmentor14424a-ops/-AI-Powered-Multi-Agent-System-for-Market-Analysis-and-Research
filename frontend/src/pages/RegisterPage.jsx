@@ -58,7 +58,17 @@ const RegisterPage = () => {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setApiError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      console.error('Registration error detail:', err);
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setApiError(detail);
+      } else if (Array.isArray(detail)) {
+        setApiError(detail.map((d) => d.msg || JSON.stringify(d)).join(', '));
+      } else if (err.message && !err.response) {
+        setApiError('Cannot connect to backend server. Ensure backend is running on http://127.0.0.1:8000');
+      } else {
+        setApiError('Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
