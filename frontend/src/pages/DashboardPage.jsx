@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import ReportVisualizer from '../components/ReportVisualizer';
+import MarketDataCollectionTab from '../components/MarketDataCollectionTab';
 import { 
   Bookmark, Trash2, Search, Sliders, History, 
   PlayCircle, FileText, CheckCircle, Clock, AlertTriangle,
   X, ExternalLink, ChevronRight, Sparkles, Building2, TrendingUp, AlertCircle, Printer,
-  Plus, Check, Eye
+  Plus, Check, Eye, Database
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -502,6 +504,17 @@ export default function DashboardPage() {
           <span>Dashboard Overview</span>
         </button>
         <button
+          onClick={() => setActiveTab('market-data')}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
+            activeTab === 'market-data'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+              : 'bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Database size={14} />
+          <span>Market Data Collection</span>
+        </button>
+        <button
           onClick={() => setActiveTab('history')}
           className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
             activeTab === 'history'
@@ -942,7 +955,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* VIEW 3: Dedicated Watchlist View */}
+      {/* VIEW 3: Market Data Collection Module */}
+      {activeTab === 'market-data' && (
+        <MarketDataCollectionTab
+          onAddToWatchlist={handleAddToWatchlist}
+          watchlist={watchlist}
+        />
+      )}
+
+      {/* VIEW 4: Dedicated Watchlist View */}
       {activeTab === 'watchlist' && (
         <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -1131,7 +1152,7 @@ export default function DashboardPage() {
       {/* Research Report Dossier Modal */}
       {selectedReport && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl relative max-h-[92vh] flex flex-col">
             <button
               onClick={() => setSelectedReport(null)}
               className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
@@ -1159,67 +1180,24 @@ export default function DashboardPage() {
                 </span>
                 {renderStatusBadge(selectedReport.status)}
               </div>
-
-              {/* Requirement 3.A: Add to Watchlist from Stock Research page */}
-              <button
-                type="button"
-                onClick={() => handleAddToWatchlist({
-                  ticker: selectedReport.ticker,
-                  name: selectedReport.company_name,
-                  market: selectedReport.market
-                })}
-                disabled={watchlist.some(w => w.ticker === selectedReport.ticker)}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold flex items-center gap-1.5 transition ${
-                  watchlist.some(w => w.ticker === selectedReport.ticker)
-                    ? 'bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed'
-                    : 'bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 shadow'
-                }`}
-              >
-                <Bookmark size={13} className={watchlist.some(w => w.ticker === selectedReport.ticker) ? 'fill-slate-400' : ''} />
-                <span>{watchlist.some(w => w.ticker === selectedReport.ticker) ? 'Saved in Watchlist' : '+ Add to Watchlist'}</span>
-              </button>
             </div>
 
-            {/* Scrollable Content Body */}
+            {/* Scrollable Content Body with Rich Visualizer */}
             <div className="overflow-y-auto pr-1 space-y-4 flex-1">
-              
-              {/* Executive Summary */}
-              {selectedReport.report?.summary && (
-                <div className="p-3.5 bg-blue-950/40 border border-blue-800/60 rounded-xl">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-blue-300 mb-1 flex items-center gap-1.5">
-                    <Sparkles size={14} /> Executive Summary
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {selectedReport.report.summary}
-                  </p>
-                </div>
-              )}
-
-              {/* Detailed Market Findings & OHLCV Records */}
-              <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
-                  <TrendingUp size={14} className="text-emerald-400" /> Dynamic Market Findings & Trading Records
-                </h4>
-                <div className="text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed bg-slate-900/90 p-3 rounded-lg border border-slate-800">
-                  {selectedReport.report?.analyst_notes || 'No detailed market notes recorded.'}
-                </div>
-              </div>
-
-              {/* Limitations & Constraints */}
-              {selectedReport.report?.limitations && (
-                <div className="p-3 bg-amber-950/30 border border-amber-900/50 rounded-xl text-xs text-amber-300/90 flex items-start gap-2">
-                  <AlertCircle size={15} className="shrink-0 mt-0.5 text-amber-400" />
-                  <div>
-                    <strong className="font-semibold block text-amber-300">Data Limitations & Scope:</strong>
-                    <span>{selectedReport.report.limitations}</span>
-                  </div>
-                </div>
-              )}
+              <ReportVisualizer
+                report={selectedReport.report}
+                task={selectedReport}
+                onAddToWatchlist={handleAddToWatchlist}
+                isSavedInWatchlist={watchlist.some(w => w.ticker === selectedReport.ticker)}
+              />
 
               {/* Task Metadata Footer */}
               <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-800 flex flex-wrap justify-between gap-2">
                 <span>Task ID: <code className="text-slate-400">{selectedReport.task_id}</code></span>
                 <span>Initiated: {new Date(selectedReport.created_at).toLocaleString()}</span>
+                {selectedReport.completed_at && (
+                  <span>Completed: {new Date(selectedReport.completed_at).toLocaleString()}</span>
+                )}
               </div>
             </div>
 
@@ -1231,7 +1209,7 @@ export default function DashboardPage() {
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
               >
                 <Printer size={13} />
-                <span>Print Report</span>
+                <span>Print Dossier</span>
               </button>
 
               <button
@@ -1239,7 +1217,7 @@ export default function DashboardPage() {
                 onClick={() => setSelectedReport(null)}
                 className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition"
               >
-                Done
+                Close
               </button>
             </div>
           </div>

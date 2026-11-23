@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, Text, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, Text, Boolean, Integer
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -27,6 +27,7 @@ class User(Base):
     preferences = relationship("UserPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
     research_tasks = relationship("ResearchTask", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    collected_market_data = relationship("MarketDataCollection", back_populates="user", cascade="all, delete-orphan")
 
 
 class UserPreference(Base):
@@ -83,6 +84,7 @@ class ResearchReport(Base):
     report_content = Column(Text, nullable=False)
     summary = Column(Text, nullable=True)
     limitations = Column(Text, nullable=True)
+    structured_data = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utc_now, nullable=False)
 
     task = relationship("ResearchTask", back_populates="report")
@@ -99,4 +101,30 @@ class UserSession(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     user = relationship("User", back_populates="sessions")
+
+
+class MarketDataCollection(Base):
+    __tablename__ = "market_data_collections"
+
+    collection_id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
+    user_id = Column(String(36), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String(20), nullable=False)
+    company_name = Column(String(255), nullable=True)
+    market = Column(String(20), nullable=False)  # NSE, BSE, NASDAQ, NYSE
+    country = Column(String(50), nullable=True)  # India, United States
+    start_date = Column(String(30), nullable=True)
+    end_date = Column(String(30), nullable=True)
+    interval = Column(String(10), default="1d", nullable=False)
+    data_source = Column(String(100), default="Yahoo Finance (yfinance API)", nullable=False)
+    retrieved_at = Column(DateTime, default=utc_now, nullable=False)
+    record_count = Column(Integer, default=0, nullable=False)
+    validation_status = Column(String(20), default="PASSED", nullable=False)
+    validation_summary = Column(Text, nullable=True)
+    ohlcv_data = Column(Text, nullable=True)
+    company_profile = Column(Text, nullable=True)
+    financial_statements = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    user = relationship("User", back_populates="collected_market_data")
+
 

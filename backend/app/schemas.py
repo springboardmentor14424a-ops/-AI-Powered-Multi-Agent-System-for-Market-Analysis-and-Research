@@ -108,3 +108,47 @@ class ResearchTaskResponse(BaseModel):
     status: str
     created_at: datetime
     completed_at: Optional[datetime] = None
+
+
+# Module 2: Market Data Collection Schemas
+class MarketDataCollectRequest(BaseModel):
+    ticker: str = Field(..., min_length=1, max_length=20)
+    market: str = Field(..., description="NSE, BSE, NASDAQ, or NYSE")
+    company_name: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    interval: Optional[str] = "1d"
+
+    @field_validator("market")
+    @classmethod
+    def validate_market(cls, v):
+        v_upper = v.upper()
+        if v_upper not in ALLOWED_MARKETS:
+            raise ValueError(f"Market must be one of {ALLOWED_MARKETS}")
+        return v_upper
+
+    @field_validator("interval")
+    @classmethod
+    def validate_interval(cls, v):
+        allowed = ["1d", "1wk", "1mo"]
+        if v and v not in allowed:
+            raise ValueError(f"Interval must be one of {allowed}")
+        return v or "1d"
+
+
+class MarketDataCollectionSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    collection_id: str
+    ticker: str
+    company_name: Optional[str] = None
+    market: str
+    country: Optional[str] = None
+    interval: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    data_source: str
+    record_count: int
+    validation_status: str
+    retrieved_at: datetime
+

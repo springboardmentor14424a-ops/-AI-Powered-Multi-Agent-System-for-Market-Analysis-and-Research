@@ -333,16 +333,49 @@ def get_historical_dataset(ticker: str, market: str, period_str: str) -> Dict[st
         lowest_close = round(float(hist["Low"].min()), 2)
         avg_volume = int(hist["Volume"].mean())
 
-        # Sample recent records (last 5 rows)
+        # Sample recent records (last 10 rows) with daily price and percent change
         recent_records = []
-        for idx, row in hist.tail(5).iterrows():
+        hist_len = len(hist)
+        start_idx = max(0, hist_len - 10)
+        for i in range(start_idx, hist_len):
+            row = hist.iloc[i]
+            prev_close = float(hist.iloc[i - 1]["Close"]) if i > 0 else float(row["Open"])
+            close_val = round(float(row["Close"]), 2)
+            chg = round(close_val - prev_close, 2)
+            chg_pct = round((chg / prev_close) * 100, 2) if prev_close else 0.0
             recent_records.append({
-                "date": idx.strftime("%Y-%m-%d"),
+                "date": hist.index[i].strftime("%Y-%m-%d"),
                 "open": round(float(row["Open"]), 2),
                 "high": round(float(row["High"]), 2),
                 "low": round(float(row["Low"]), 2),
-                "close": round(float(row["Close"]), 2),
+                "close": close_val,
                 "volume": int(row["Volume"]),
+                "change": chg,
+                "change_pct": chg_pct,
+            })
+
+        # Generate smooth sampled price history series for charts (up to ~90 points)
+        price_history = []
+        step = max(1, hist_len // 90)
+        for i in range(0, hist_len, step):
+            row = hist.iloc[i]
+            price_history.append({
+                "date": hist.index[i].strftime("%Y-%m-%d"),
+                "close": round(float(row["Close"]), 2),
+                "open": round(float(row["Open"]), 2),
+                "high": round(float(row["High"]), 2),
+                "low": round(float(row["Low"]), 2),
+                "volume": int(row["Volume"]),
+            })
+        if hist_len > 0 and hist.index[-1].strftime("%Y-%m-%d") != price_history[-1]["date"]:
+            last_row = hist.iloc[-1]
+            price_history.append({
+                "date": hist.index[-1].strftime("%Y-%m-%d"),
+                "close": round(float(last_row["Close"]), 2),
+                "open": round(float(last_row["Open"]), 2),
+                "high": round(float(last_row["High"]), 2),
+                "low": round(float(last_row["Low"]), 2),
+                "volume": int(last_row["Volume"]),
             })
 
         # Fetch fundamental and valuation metrics
@@ -389,6 +422,7 @@ def get_historical_dataset(ticker: str, market: str, period_str: str) -> Dict[st
             "lowest_price": lowest_close,
             "average_daily_volume": avg_volume,
             "recent_ohlcv": recent_records,
+            "price_history": price_history,
             # Fundamental & Technical Metrics
             "sector": info.get("sector") or "General Equities",
             "industry": info.get("industry") or "Diversified Operations",

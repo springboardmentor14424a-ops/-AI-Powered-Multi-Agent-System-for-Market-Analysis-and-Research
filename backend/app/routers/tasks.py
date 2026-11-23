@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timezone
 import time
+import json
 from pydantic import BaseModel
 from app.database import get_db, SessionLocal
 from app.models import User, ResearchTask, UserPreference, ResearchReport
@@ -122,11 +123,44 @@ def execute_research_pipeline(task_id: str, ticker: str, market: str, period: st
                 f"Data dynamically sourced via Yahoo Finance API (yfinance)."
             )
 
+            structured_payload = {
+                "ticker": ticker.upper(),
+                "formatted_symbol": symbol_used,
+                "company_name": task.company_name,
+                "market": market,
+                "period": period,
+                "currency": curr,
+                "total_trading_days": total_days,
+                "start_date": hist_data.get("start_date"),
+                "end_date": hist_data.get("end_date"),
+                "start_price": hist_data.get("start_price"),
+                "end_price": hist_data.get("end_price"),
+                "period_return_pct": ret_pct,
+                "highest_price": hist_data.get("highest_price"),
+                "lowest_price": hist_data.get("lowest_price"),
+                "average_daily_volume": hist_data.get("average_daily_volume"),
+                "sector": sector,
+                "industry": industry,
+                "market_cap": mkt_cap,
+                "trailing_pe": trailing_pe,
+                "forward_pe": forward_pe,
+                "trailing_eps": eps,
+                "target_mean_price": target_price,
+                "recommendation_key": rec,
+                "fifty_day_avg": f_fifty,
+                "two_hundred_day_avg": f_two_hundred,
+                "fifty_two_week_high": y_high,
+                "fifty_two_week_low": y_low,
+                "recent_ohlcv": hist_data.get("recent_ohlcv", []),
+                "price_history": hist_data.get("price_history", []),
+            }
+
             new_report = ResearchReport(
                 task_id=task.task_id,
                 summary=summary_text,
                 report_content=detailed_content,
                 limitations="Historical price data subject to Yahoo Finance API query rate limits and exchange operational hours.",
+                structured_data=json.dumps(structured_payload),
                 created_at=datetime.now(timezone.utc)
             )
             db.add(new_report)
@@ -251,6 +285,13 @@ def get_task_report(
     summary_text = report_row.summary if report_row else f"Initial summary for {task.ticker}"
     content_text = report_row.report_content if report_row else f"Initial analysis notes for {task.ticker}"
     limitations_text = report_row.limitations if report_row else "Subject to provider availability"
+    
+    structured_json = None
+    if report_row and getattr(report_row, "structured_data", None):
+        try:
+            structured_json = json.loads(report_row.structured_data)
+        except Exception:
+            structured_json = None
 
     return {
         "task_id": task.task_id,
@@ -267,6 +308,7 @@ def get_task_report(
             "analyst_notes": content_text,
             "summary": summary_text,
             "limitations": limitations_text,
+            "structured_data": structured_json,
             "metrics": {
                 "market": task.market,
                 "status": task.status,

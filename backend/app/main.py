@@ -2,16 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.config import settings
-from app.models import User, UserPreference, SavedStock, ResearchTask, ResearchReport, UserSession
-from app.routers import auth, preferences, watchlist, tasks
+from app.models import User, UserPreference, SavedStock, ResearchTask, ResearchReport, UserSession, MarketDataCollection
+from app.routers import auth, preferences, watchlist, tasks, market_data_collection
 
 # Auto-create all database tables on application startup
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Multi-Agent Stock Research Analyst API",
-    description="Module 1: User Authentication and Research Workspace",
-    version="1.0.0",
+    description="Module 1: User Authentication & Workspace | Module 2: Stock Search & Market Data Collection",
+    version="2.0.0",
 )
 
 # Configure CORS
@@ -34,6 +34,7 @@ app.include_router(auth.router)
 app.include_router(preferences.router)
 app.include_router(watchlist.router)
 app.include_router(tasks.router)
+app.include_router(market_data_collection.router)
 
 @app.get("/")
 def root():
