@@ -22,6 +22,7 @@ from app.services.market_data_collection import (
     EXCHANGE_COMPANIES,
     VALID_INTERVALS
 )
+from app.services.market_data import DEFAULT_TICKERS
 
 router = APIRouter(prefix="/api/market-data", tags=["Market Data Collection"])
 
@@ -56,9 +57,18 @@ def collect_market_data(
     and real financial statements, records data source traceability and timestamps,
     and persists the validated dataset to PostgreSQL.
     """
+    market_upper = payload.market.strip().upper()
+    clean_ticker = payload.ticker.strip().upper()
+    market_stocks = [s for s in DEFAULT_TICKERS if s["market"].upper() == market_upper]
+    if not any(s["ticker"].upper() == clean_ticker for s in market_stocks):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Company symbol '{payload.ticker}' is not listed on the {market_upper} exchange. Please select a valid company."
+        )
+
     collected = fetch_market_data_collection(
-        ticker=payload.ticker,
-        market=payload.market,
+        ticker=clean_ticker,
+        market=market_upper,
         start_date=payload.start_date,
         end_date=payload.end_date,
         interval=payload.interval or "1d"

@@ -16,85 +16,14 @@ from typing import Dict, Any, List, Optional
 import uuid
 import re
 
-# Comprehensive catalog of well-known securities across all four supported exchanges
+from app.services.market_data import DEFAULT_TICKERS, search_companies_by_market
+
+# Catalog of all supported securities across exchanges with country metadata
 EXCHANGE_COMPANIES = {
-    "NSE": [
-        {"ticker": "TATAMOTORS", "name": "Tata Motors Limited", "market": "NSE", "country": "India"},
-        {"ticker": "TCS", "name": "Tata Consultancy Services Ltd", "market": "NSE", "country": "India"},
-        {"ticker": "RELIANCE", "name": "Reliance Industries Limited", "market": "NSE", "country": "India"},
-        {"ticker": "INFY", "name": "Infosys Limited", "market": "NSE", "country": "India"},
-        {"ticker": "HDFCBANK", "name": "HDFC Bank Limited", "market": "NSE", "country": "India"},
-        {"ticker": "ICICIBANK", "name": "ICICI Bank Limited", "market": "NSE", "country": "India"},
-        {"ticker": "SBIN", "name": "State Bank of India", "market": "NSE", "country": "India"},
-        {"ticker": "BHARTIARTL", "name": "Bharti Airtel Limited", "market": "NSE", "country": "India"},
-        {"ticker": "ITC", "name": "ITC Limited", "market": "NSE", "country": "India"},
-        {"ticker": "LT", "name": "Larsen & Toubro Limited", "market": "NSE", "country": "India"},
-        {"ticker": "HINDUNILVR", "name": "Hindustan Unilever Limited", "market": "NSE", "country": "India"},
-        {"ticker": "BAJFINANCE", "name": "Bajaj Finance Limited", "market": "NSE", "country": "India"},
-        {"ticker": "MARUTI", "name": "Maruti Suzuki India Limited", "market": "NSE", "country": "India"},
-        {"ticker": "SUNPHARMA", "name": "Sun Pharmaceutical Industries Ltd", "market": "NSE", "country": "India"},
-        {"ticker": "AXISBANK", "name": "Axis Bank Limited", "market": "NSE", "country": "India"},
-        {"ticker": "KOTAKBANK", "name": "Kotak Mahindra Bank Limited", "market": "NSE", "country": "India"},
-        {"ticker": "WIPRO", "name": "Wipro Limited", "market": "NSE", "country": "India"},
-        {"ticker": "TATASTEEL", "name": "Tata Steel Limited", "market": "NSE", "country": "India"},
-        {"ticker": "TATAPOWER", "name": "Tata Power Company Ltd", "market": "NSE", "country": "India"},
-        {"ticker": "TITAN", "name": "Titan Company Limited", "market": "NSE", "country": "India"},
-        {"ticker": "ZOMATO", "name": "Zomato Limited", "market": "NSE", "country": "India"},
-        {"ticker": "JIOFIN", "name": "Jio Financial Services Ltd", "market": "NSE", "country": "India"},
-    ],
-    "BSE": [
-        {"ticker": "TATAMOTORS", "name": "Tata Motors Limited", "market": "BSE", "country": "India"},
-        {"ticker": "TCS", "name": "Tata Consultancy Services Ltd", "market": "BSE", "country": "India"},
-        {"ticker": "RELIANCE", "name": "Reliance Industries Limited", "market": "BSE", "country": "India"},
-        {"ticker": "INFY", "name": "Infosys Limited", "market": "BSE", "country": "India"},
-        {"ticker": "HDFCBANK", "name": "HDFC Bank Limited", "market": "BSE", "country": "India"},
-        {"ticker": "ICICIBANK", "name": "ICICI Bank Limited", "market": "BSE", "country": "India"},
-        {"ticker": "SBIN", "name": "State Bank of India", "market": "BSE", "country": "India"},
-        {"ticker": "ITC", "name": "ITC Limited", "market": "BSE", "country": "India"},
-        {"ticker": "WIPRO", "name": "Wipro Limited", "market": "BSE", "country": "India"},
-        {"ticker": "LT", "name": "Larsen & Toubro Limited", "market": "BSE", "country": "India"},
-        {"ticker": "SAIL", "name": "Steel Authority of India Ltd", "market": "BSE", "country": "India"},
-        {"ticker": "BHEL", "name": "Bharat Heavy Electricals Ltd", "market": "BSE", "country": "India"},
-        {"ticker": "VEDL", "name": "Vedanta Limited", "market": "BSE", "country": "India"},
-        {"ticker": "IOC", "name": "Indian Oil Corporation Ltd", "market": "BSE", "country": "India"},
-        {"ticker": "PNB", "name": "Punjab National Bank", "market": "BSE", "country": "India"},
-        {"ticker": "BANKBARODA", "name": "Bank of Baroda", "market": "BSE", "country": "India"},
-        {"ticker": "PAYTM", "name": "One97 Communications (Paytm)", "market": "BSE", "country": "India"},
-        {"ticker": "SUZLON", "name": "Suzlon Energy Limited", "market": "BSE", "country": "India"},
-    ],
-    "NASDAQ": [
-        {"ticker": "AAPL", "name": "Apple Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "MSFT", "name": "Microsoft Corporation", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "GOOGL", "name": "Alphabet Inc. (Google)", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "AMZN", "name": "Amazon.com Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "NVDA", "name": "NVIDIA Corporation", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "META", "name": "Meta Platforms, Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "TSLA", "name": "Tesla, Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "AVGO", "name": "Broadcom Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "COST", "name": "Costco Wholesale Corporation", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "NFLX", "name": "Netflix, Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "AMD", "name": "Advanced Micro Devices, Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "ADBE", "name": "Adobe Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "CSCO", "name": "Cisco Systems, Inc.", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "INTC", "name": "Intel Corporation", "market": "NASDAQ", "country": "United States"},
-        {"ticker": "QCOM", "name": "Qualcomm Incorporated", "market": "NASDAQ", "country": "United States"},
-    ],
-    "NYSE": [
-        {"ticker": "JNJ", "name": "Johnson & Johnson", "market": "NYSE", "country": "United States"},
-        {"ticker": "JPM", "name": "JPMorgan Chase & Co.", "market": "NYSE", "country": "United States"},
-        {"ticker": "V", "name": "Visa Inc.", "market": "NYSE", "country": "United States"},
-        {"ticker": "PG", "name": "Procter & Gamble Co.", "market": "NYSE", "country": "United States"},
-        {"ticker": "UNH", "name": "UnitedHealth Group Inc.", "market": "NYSE", "country": "United States"},
-        {"ticker": "HD", "name": "The Home Depot, Inc.", "market": "NYSE", "country": "United States"},
-        {"ticker": "MA", "name": "Mastercard Incorporated", "market": "NYSE", "country": "United States"},
-        {"ticker": "XOM", "name": "Exxon Mobil Corporation", "market": "NYSE", "country": "United States"},
-        {"ticker": "BAC", "name": "Bank of America Corporation", "market": "NYSE", "country": "United States"},
-        {"ticker": "KO", "name": "The Coca-Cola Company", "market": "NYSE", "country": "United States"},
-        {"ticker": "PFE", "name": "Pfizer Inc.", "market": "NYSE", "country": "United States"},
-        {"ticker": "DIS", "name": "The Walt Disney Company", "market": "NYSE", "country": "United States"},
-        {"ticker": "NKE", "name": "NIKE, Inc.", "market": "NYSE", "country": "United States"},
-        {"ticker": "WMT", "name": "Walmart Inc.", "market": "NYSE", "country": "United States"},
-    ]
+    "NSE": [dict(c, country="India") for c in DEFAULT_TICKERS if c["market"] == "NSE"],
+    "BSE": [dict(c, country="India") for c in DEFAULT_TICKERS if c["market"] == "BSE"],
+    "NASDAQ": [dict(c, country="United States") for c in DEFAULT_TICKERS if c["market"] == "NASDAQ"],
+    "NYSE": [dict(c, country="United States") for c in DEFAULT_TICKERS if c["market"] == "NYSE"]
 }
 
 MARKET_SUFFIX = {
@@ -110,32 +39,10 @@ def search_market_companies(market: str, query: str = "") -> List[Dict[str, Any]
     """
     Search for companies within a specific stock exchange.
     Ensures strict exchange isolation and displays company name, ticker, exchange, and country.
+    Never returns companies belonging to unselected exchange markets.
+    If no matches are found, returns an empty list. Never substitutes fake companies.
     """
-    market_upper = (market or "NASDAQ").upper()
-    universe = EXCHANGE_COMPANIES.get(market_upper, [])
-    
-    q = (query or "").strip().lower()
-    if not q:
-        # Return default top 8 recommendations for this exchange
-        return universe[:8]
-
-    matches = []
-    for c in universe:
-        if q in c["ticker"].lower() or q in c["name"].lower():
-            matches.append(c)
-
-    # If user searched for an exact custom ticker not in default list, allow typing it for that exchange
-    if not matches and len(q) >= 1 and re.match(r"^[A-Z0-9.\-]{1,15}$", query.strip().upper()):
-        clean_ticker = query.strip().upper()
-        country = "India" if market_upper in ["NSE", "BSE"] else "United States"
-        matches.append({
-            "ticker": clean_ticker,
-            "name": f"{clean_ticker} ({market_upper})",
-            "market": market_upper,
-            "country": country
-        })
-
-    return matches
+    return search_companies_by_market(market, query)
 
 def format_ticker_for_market(ticker: str, market: str) -> str:
     """Appends appropriate exchange suffix for Yahoo Finance query."""

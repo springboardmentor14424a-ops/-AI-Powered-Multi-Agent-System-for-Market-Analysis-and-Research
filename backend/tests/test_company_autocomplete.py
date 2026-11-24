@@ -3,6 +3,74 @@ import sys
 
 BASE_URL = "http://127.0.0.1:8000/api"
 
+def test_company_autocomplete_spec(client):
+    """Pytest-compatible test covering all 8 specification requirements."""
+    # 1. Test NSE + 'TAT' (Prefix matching on company name)
+    r1 = client.get("/api/watchlist/companies", params={"market": "NSE", "q": "TAT"})
+    assert r1.status_code == 200, f"Expected 200, got {r1.status_code}"
+    nse_tat = r1.json()
+    assert len(nse_tat) > 0, "Expected at least 1 match for NSE + TAT"
+    names = [c["name"] for c in nse_tat]
+    assert any("Tata Motors" in n for n in names), "Tata Motors must be present in NSE"
+    assert any("Tata Steel" in n for n in names), "Tata Steel must be present in NSE"
+    for c in nse_tat:
+        assert c["market"] == "NSE", f"Leaked non-NSE market: {c['market']}"
+
+    # 2. Test BSE + 'TAT'
+    r2 = client.get("/api/watchlist/companies", params={"market": "BSE", "q": "TAT"})
+    assert r2.status_code == 200
+    bse_tat = r2.json()
+    assert len(bse_tat) > 0
+    for c in bse_tat:
+        assert c["market"] == "BSE", f"Leaked non-BSE market: {c['market']}"
+
+    # 3. Test NASDAQ + 'TAT' (Should return NO results found / empty list)
+    r3 = client.get("/api/watchlist/companies", params={"market": "NASDAQ", "q": "TAT"})
+    assert r3.status_code == 200
+    nasdaq_tat = r3.json()
+    assert len(nasdaq_tat) == 0, f"Expected 0 results for NASDAQ + TAT, got {len(nasdaq_tat)}"
+
+    # 4. Test Case-Insensitivity ('app' vs 'APP' vs 'Apple')
+    r4_lower = client.get("/api/watchlist/companies", params={"market": "NASDAQ", "q": "app"})
+    r4_upper = client.get("/api/watchlist/companies", params={"market": "NASDAQ", "q": "APP"})
+    assert r4_lower.json() == r4_upper.json(), "Case-insensitivity failed"
+    nasdaq_app = r4_lower.json()
+    assert any(c["ticker"] == "AAPL" for c in nasdaq_app), "Apple Inc. (AAPL) should match 'app'"
+    for c in nasdaq_app:
+        assert c["market"] == "NASDAQ", f"Leaked non-NASDAQ market: {c['market']}"
+
+    # 5. Test NYSE Isolation (Apple Inc. must NOT be returned for NYSE)
+    r5 = client.get("/api/watchlist/companies", params={"market": "NYSE", "q": "Apple"})
+    nyse_apple = r5.json()
+    assert len(nyse_apple) == 0, "Apple Inc. must not be returned for NYSE"
+
+    # 6. Test User Issue: Typing 'P' on NASDAQ must NOT return 'Meta Platforms'
+    r6 = client.get("/api/watchlist/companies", params={"market": "NASDAQ", "q": "P"})
+    assert r6.status_code == 200
+    nasdaq_p = r6.json()
+    p_names = [c["name"] for c in nasdaq_p]
+    assert "Meta Platforms, Inc." not in p_names, "CRITICAL ERROR: 'Meta Platforms, Inc.' must NOT be returned for prefix 'P'!"
+    for c in nasdaq_p:
+        assert c["name"].lower().startswith("p") or c["ticker"].lower().startswith("p")
+        assert c["market"] == "NASDAQ"
+
+    # 7. Test Typing 'M' on NASDAQ must return 'Meta Platforms'
+    r7 = client.get("/api/watchlist/companies", params={"market": "NASDAQ", "q": "M"})
+    assert r7.status_code == 200
+    nasdaq_m = r7.json()
+    m_names = [c["name"] for c in nasdaq_m]
+    assert "Meta Platforms, Inc." in m_names, "'Meta Platforms, Inc.' must be returned for prefix 'M'!"
+    for c in nasdaq_m:
+        assert c["name"].lower().startswith("m") or c["ticker"].lower().startswith("m")
+
+    # 8. Test strict parameter on /search endpoint
+    r8 = client.get("/api/watchlist/search", params={"q": "TAT", "market": "NSE", "strict": True})
+    assert r8.status_code == 200
+    assert len(r8.json()) > 0
+    for c in r8.json():
+        assert c["market"] == "NSE"
+
+
 def run_tests():
     print("==================================================")
     print("RUNNING COMPANY AUTOCOMPLETE SPECIFICATION TESTS")

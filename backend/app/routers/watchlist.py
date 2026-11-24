@@ -9,7 +9,8 @@ from app.services.market_data import (
     get_stock_quote,
     format_ticker_for_market,
     DEFAULT_TICKERS,
-    search_companies_by_market
+    search_companies_by_market,
+    is_company_match
 )
 
 router = APIRouter(prefix="/api/watchlist", tags=["Saved Stocks & Watchlists"])
@@ -42,30 +43,23 @@ def search_stocks(
     market: Optional[str] = Query(None),
     strict: bool = Query(False)
 ):
-    if strict and market:
+    """
+    Searches for stocks matching ticker symbol or company name prefix.
+    When 'market' is specified, strictly isolates suggestions to that exchange only.
+    Never mixes other markets, and never fabricates or auto-substitutes fake companies.
+    """
+    if market:
         return search_companies_by_market(market, q)
 
-    query = q.strip().upper()
-    primary_matches = []
-    other_matches = []
-
+    matches = []
     for s in POPULAR_STOCKS:
-        if query in s["ticker"] or query in s["name"].upper():
-            if market and s["market"] == market:
-                primary_matches.append(s)
-            else:
-                other_matches.append(s)
-
-    # Preferred market first, then other available exchanges
-    matches = primary_matches + other_matches
-
-    # If no match or user typed a custom ticker, allow direct selection
-    if not any(m["ticker"] == query for m in matches) and len(query) >= 1:
-        matches.append({
-            "ticker": query,
-            "name": f"{query} Corporation",
-            "market": market or "NASDAQ"
-        })
+        if is_company_match(s, q):
+            matches.append({
+                "ticker": s["ticker"],
+                "name": s["name"],
+                "market": s["market"],
+                "country": "India" if s["market"] in ["NSE", "BSE"] else "United States"
+            })
     return matches
 
 @router.get("", response_model=List[WatchlistItemResponse])

@@ -15,6 +15,7 @@ from app.models import User, FundamentalAnalysis
 from app.schemas import FundamentalAnalyzeRequest, FundamentalAnalysisSummary
 from app.dependencies import get_current_user
 from app.services.fundamental_agent import run_fundamental_agent_analysis
+from app.services.market_data import DEFAULT_TICKERS
 
 router = APIRouter(prefix="/api/fundamental", tags=["Agent 3: Fundamental Analysis"])
 
@@ -36,9 +37,20 @@ def perform_fundamental_analysis(
     - AI-grade synthesis narrative and health score
     Persists the structured report to PostgreSQL.
     """
+    market_upper = payload.market.strip().upper()
+    clean_ticker = payload.ticker.strip().upper()
+
+    # Validate company belongs strictly to the requested exchange market
+    market_stocks = [s for s in DEFAULT_TICKERS if s["market"].upper() == market_upper]
+    if not any(s["ticker"].upper() == clean_ticker for s in market_stocks):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Company symbol '{payload.ticker}' is not listed on the {market_upper} exchange. Please select a valid company."
+        )
+
     analysis_data = run_fundamental_agent_analysis(
-        ticker=payload.ticker,
-        market=payload.market,
+        ticker=clean_ticker,
+        market=market_upper,
         company_name=payload.company_name
     )
 

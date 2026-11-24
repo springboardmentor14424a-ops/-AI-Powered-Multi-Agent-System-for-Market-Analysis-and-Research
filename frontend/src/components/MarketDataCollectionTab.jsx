@@ -157,8 +157,8 @@ export default function MarketDataCollectionTab({ onAddToWatchlist, watchlist = 
 
   // Perform Market Data Collection
   const handleCollectMarketData = async () => {
-    if (!selectedCompany?.ticker) {
-      setCollectionError('Please select a company ticker first.');
+    if (!selectedCompany?.ticker || selectedCompany.market?.toUpperCase() !== selectedExchange.toUpperCase()) {
+      setCollectionError(`Please select a valid company listed on ${selectedExchange} from the search suggestions.`);
       return;
     }
 
@@ -396,9 +396,11 @@ export default function MarketDataCollectionTab({ onAddToWatchlist, watchlist = 
             <div className="relative">
               <input
                 type="text"
-                value={searchQuery || (selectedCompany?.ticker ? `${selectedCompany.name} (${selectedCompany.ticker})` : '')}
+                value={searchQuery !== '' ? searchQuery : (selectedCompany?.ticker ? `${selectedCompany.name} (${selectedCompany.ticker})` : '')}
                 onChange={e => {
-                  setSearchQuery(e.target.value);
+                  const val = e.target.value;
+                  setSearchQuery(val);
+                  setSelectedCompany(null);
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
@@ -443,7 +445,7 @@ export default function MarketDataCollectionTab({ onAddToWatchlist, watchlist = 
                   ))
                 ) : (
                   <div className="p-4 text-center text-xs text-slate-400">
-                    No results found matching "{searchQuery}" on {selectedExchange}.
+                    No results found.
                   </div>
                 )}
               </div>

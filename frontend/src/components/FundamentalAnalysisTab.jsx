@@ -115,8 +115,8 @@ export default function FundamentalAnalysisTab({ onAddToWatchlist, watchlist = [
 
   // Run Fundamental Analysis
   const handleRunAnalysis = async () => {
-    if (!selectedCompany?.ticker) {
-      setAnalysisError('Please select a company ticker first.');
+    if (!selectedCompany?.ticker || selectedCompany.market?.toUpperCase() !== selectedExchange.toUpperCase()) {
+      setAnalysisError(`Please select a valid company listed on ${selectedExchange} from the suggestions.`);
       return;
     }
 
@@ -298,9 +298,11 @@ export default function FundamentalAnalysisTab({ onAddToWatchlist, watchlist = [
             <div className="relative">
               <input
                 type="text"
-                value={searchQuery || (selectedCompany?.ticker ? `${selectedCompany.name} (${selectedCompany.ticker})` : '')}
+                value={searchQuery !== '' ? searchQuery : (selectedCompany?.ticker ? `${selectedCompany.name} (${selectedCompany.ticker})` : '')}
                 onChange={e => {
-                  setSearchQuery(e.target.value);
+                  const val = e.target.value;
+                  setSearchQuery(val);
+                  setSelectedCompany(null);
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
@@ -343,7 +345,7 @@ export default function FundamentalAnalysisTab({ onAddToWatchlist, watchlist = [
                   ))
                 ) : (
                   <div className="p-4 text-center text-xs text-slate-400">
-                    No results found matching "{searchQuery}" on {selectedExchange}.
+                    No results found.
                   </div>
                 )}
               </div>

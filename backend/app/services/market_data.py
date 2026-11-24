@@ -6,6 +6,7 @@ Supports NASDAQ, NYSE, NSE (India), and BSE (India) as required by Module 1 spec
 
 import yfinance as yf
 from typing import Optional, Dict, Any, List
+import re
 
 PERIOD_MAP = {
     "1 Month": "1mo",
@@ -221,13 +222,37 @@ DEFAULT_TICKERS = [
     {"ticker": "GM", "name": "General Motors Company", "market": "NYSE"},
 ]
 
-def search_companies_by_market(market: str, query: str = "") -> List[Dict[str, str]]:
+def is_company_match(company: Dict[str, Any], query: str) -> bool:
+    """
+    Evaluates whether a company matches the query string according to strict exchange-specific rules:
+    1. Case-insensitive prefix match on registered ticker symbol (e.g., 'TCS' -> TCS, 'INF' -> INFY, 'REL' -> RELIANCE)
+    2. Case-insensitive prefix match on official company name (e.g., 'REL' -> Reliance Industries, 'TAT' -> Tata Motors)
+    3. For queries >= 3 characters, match significant word prefixes in company name (e.g., 'MOTORS' -> Tata Motors)
+    Strictly excludes arbitrary non-prefix internal characters (e.g., 'P' will never match 'Apple' or 'Meta Platforms').
+    """
+    q = query.strip().lower()
+    if not q:
+        return True
+
+    t = (company.get("ticker") or "").lower()
+    n = (company.get("name") or "").lower()
+
+    if t.startswith(q) or n.startswith(q):
+        return True
+
+    if len(q) >= 3:
+        words = [w for w in re.split(r'[\s\-&.,()]+', n) if w and w not in ['inc', 'ltd', 'limited', 'corporation', 'corp', 'company']]
+        if any(w.startswith(q) for w in words):
+            return True
+
+    return False
+
+def search_companies_by_market(market: str, query: str = "") -> List[Dict[str, Any]]:
     """
     Dynamically searches and returns companies strictly listed on the specified exchange market.
-    Matches companies strictly based on the exact prefix of the company name:
-    company_name.lower().startswith(query.lower())
+    Matches companies based on ticker symbol prefix, company name prefix, or significant word prefixes.
     Never returns companies belonging to unselected exchange markets.
-    Never uses substring matching or matches words inside the name that do not start with the prefix.
+    If no matches are found, returns an empty list. Never substitutes or fabricates fake companies.
     """
     if not market:
         return []
@@ -238,14 +263,17 @@ def search_companies_by_market(market: str, query: str = "") -> List[Dict[str, s
     # Strictly filter candidates belonging ONLY to the selected exchange
     market_stocks = [s for s in DEFAULT_TICKERS if s["market"].upper() == market_upper]
 
-    if not q:
-        return market_stocks
+    results = []
+    for s in market_stocks:
+        if is_company_match(s, q):
+            results.append({
+                "ticker": s["ticker"],
+                "name": s["name"],
+                "market": s["market"],
+                "country": "India" if s["market"] in ["NSE", "BSE"] else "United States"
+            })
 
-    # Strict prefix-based matching: only companies whose names begin with the exact prefix entered
-    return [
-        s for s in market_stocks
-        if s["name"].lower().startswith(q)
-    ]
+    return results
 
 def format_ticker_for_market(ticker: str, market: str) -> str:
     """

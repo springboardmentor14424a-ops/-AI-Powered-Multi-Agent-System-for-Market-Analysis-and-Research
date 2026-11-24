@@ -305,6 +305,19 @@ export default function DashboardPage() {
     preloadExchangeCompanies(newMarket);
   };
 
+  const isMatchingCompany = (comp, q) => {
+    if (!q) return true;
+    const cleanQ = q.trim().toLowerCase();
+    const t = (comp.ticker || '').toLowerCase();
+    const n = (comp.name || '').toLowerCase();
+    if (t.startsWith(cleanQ) || n.startsWith(cleanQ)) return true;
+    if (cleanQ.length >= 3) {
+      const words = n.replace(/[,.()\-]/g, ' ').split(/\s+/).filter(w => !['inc', 'ltd', 'limited', 'corporation', 'corp', 'company'].includes(w));
+      return words.some(w => w.startsWith(cleanQ));
+    }
+    return false;
+  };
+
   const handleCompanyInputChange = (e) => {
     const val = e.target.value;
     setCompanyNameInput(val);
@@ -333,12 +346,12 @@ export default function DashboardPage() {
 
     setShowSuggestions(true);
 
-    // Ensure suggestions update immediately whenever the input changes
+    // Ensure suggestions update immediately from cached preloaded exchange data
     const cached = marketCompaniesCacheRef.current[directMarket];
     if (cached && cached.length > 0) {
       const immediateMatches = cached.filter(comp =>
         comp.market.toUpperCase() === directMarket.toUpperCase() &&
-        comp.name.toLowerCase().startsWith(query.toLowerCase())
+        isMatchingCompany(comp, query)
       );
       setCompanySuggestions(immediateMatches);
       setLoadingSuggestions(false);
@@ -366,10 +379,10 @@ export default function DashboardPage() {
           return;
         }
 
-        // Apply strict prefix-based matching
-        const strictMatches = res.data.filter(comp =>
+        // Apply strict exchange-specific prefix and symbol matching
+        const strictMatches = (res.data || []).filter(comp =>
           comp.market.toUpperCase() === directMarket.toUpperCase() &&
-          comp.name.toLowerCase().startsWith(query.toLowerCase())
+          isMatchingCompany(comp, query)
         );
 
         setCompanySuggestions(strictMatches);
@@ -394,11 +407,12 @@ export default function DashboardPage() {
 
   const handleDirectResearch = async (e) => {
     e.preventDefault();
-    const targetTicker = selectedCompany ? selectedCompany.ticker : (directTicker.trim() || companyNameInput.trim());
-    const targetName = selectedCompany ? selectedCompany.name : (companyNameInput.trim() || null);
-    if (!targetTicker) return;
+    if (!selectedCompany || selectedCompany.market.toUpperCase() !== directMarket.toUpperCase()) {
+      showNotification(`Please select a valid company listed on the ${directMarket} exchange from the search suggestions.`, 'error');
+      return;
+    }
 
-    await handleLaunchResearch(targetTicker, targetName, directMarket, directPeriod);
+    await handleLaunchResearch(selectedCompany.ticker, selectedCompany.name, directMarket, directPeriod);
     setCompanyNameInput('');
     setSelectedCompany(null);
     setDirectTicker('');
@@ -835,7 +849,7 @@ export default function DashboardPage() {
                           </div>
                         ) : companySuggestions.length === 0 ? (
                           <div className="p-3 text-center text-xs text-slate-400">
-                            No results found
+                            No results found.
                           </div>
                         ) : (
                           companySuggestions.map((s) => (
@@ -1011,31 +1025,37 @@ export default function DashboardPage() {
               />
               <Search size={14} className="absolute left-3 top-2.5 text-slate-500" />
 
-              {searchResults.length > 0 && (
+              {searchQuery.trim().length > 0 && (
                 <div className="absolute z-30 w-full mt-1.5 bg-slate-900 border border-slate-700 rounded-xl max-h-64 overflow-y-auto shadow-2xl divide-y divide-slate-800">
-                  {searchResults.map((s) => (
-                    <div
-                      key={`dedicated-${s.market}-${s.ticker}`}
-                      className="px-3 py-2 hover:bg-slate-800 flex items-center justify-between gap-2 transition"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-white font-semibold text-xs">{s.ticker}</span>
-                          <span className="text-[10px] font-mono px-1.5 rounded bg-blue-950 text-blue-300 border border-blue-900">
-                            {s.market}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 truncate">{s.name}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleAddToWatchlist(s)}
-                        className="px-2 py-1 text-[11px] font-medium bg-slate-800 hover:bg-emerald-950 text-slate-300 hover:text-emerald-400 border border-slate-700 hover:border-emerald-800 rounded transition"
-                      >
-                        + Watchlist
-                      </button>
+                  {searchResults.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-slate-400">
+                      No results found.
                     </div>
-                  ))}
+                  ) : (
+                    searchResults.map((s) => (
+                      <div
+                        key={`dedicated-${s.market}-${s.ticker}`}
+                        className="px-3 py-2 hover:bg-slate-800 flex items-center justify-between gap-2 transition"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-white font-semibold text-xs">{s.ticker}</span>
+                            <span className="text-[10px] font-mono px-1.5 rounded bg-blue-950 text-blue-300 border border-blue-900">
+                              {s.market}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate">{s.name}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAddToWatchlist(s)}
+                          className="px-2 py-1 text-[11px] font-medium bg-slate-800 hover:bg-emerald-950 text-slate-300 hover:text-emerald-400 border border-slate-700 hover:border-emerald-800 rounded transition"
+                        >
+                          + Watchlist
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>

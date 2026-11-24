@@ -208,35 +208,26 @@ def start_research_task(
     ticker = raw_input.upper()
     company_name = task_in.company_name
 
-    # Intelligent resolution: Match by ticker symbol OR company name
-    matched = None
-    for item in DEFAULT_TICKERS:
-        if item["ticker"].upper() == ticker:
-            matched = item
-            break
-
-    if not matched:
-        lower_input = raw_input.lower()
-        for item in DEFAULT_TICKERS:
-            if item["name"].lower() == lower_input:
-                matched = item
-                break
-        if not matched:
-            for item in DEFAULT_TICKERS:
-                if lower_input in item["name"].lower() or item["ticker"].lower() == lower_input:
-                    matched = item
-                    break
-
-    if matched:
-        ticker = matched["ticker"]
-        company_name = company_name or matched["name"]
-        if not market:
-            market = matched["market"]
-    elif not company_name:
-        company_name = f"{ticker} Corporation"
-
     if not market:
         market = prefs.preferred_market if prefs else "NASDAQ"
+    market_upper = market.upper()
+
+    # Validate company belongs strictly to the requested exchange market
+    market_stocks = [s for s in DEFAULT_TICKERS if s["market"].upper() == market_upper]
+    matched = next((s for s in market_stocks if s["ticker"].upper() == ticker), None)
+    if not matched:
+        lower_input = raw_input.lower()
+        matched = next((s for s in market_stocks if s["name"].lower() == lower_input or s["name"].lower().startswith(lower_input)), None)
+
+    if not matched:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Company '{raw_input}' is not listed on the {market_upper} exchange. Please select a valid company."
+        )
+
+    ticker = matched["ticker"]
+    company_name = matched["name"]
+    market = matched["market"]
 
     now = datetime.now(timezone.utc)
     new_task = ResearchTask(
