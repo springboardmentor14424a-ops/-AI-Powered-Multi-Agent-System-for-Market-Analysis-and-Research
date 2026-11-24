@@ -1,3 +1,4 @@
+from fundamental_agent import run_fundamental_analysis
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -285,3 +286,22 @@ def get_market_data(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to retrieve market data: {str(e)}")
+
+# --- MODULE 3: FUNDAMENTAL ANALYSIS AGENT ENDPOINT ---
+
+@app.get("/agents/fundamental/{symbol}")
+def get_fundamental_analysis(
+    symbol: str,
+    market: Optional[str] = None,
+    user_id: int = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    selected_market = market or (user.preferred_market if user else "NASDAQ") or "NASDAQ"
+
+    try:
+        return run_fundamental_analysis(symbol=symbol, market=selected_market)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fundamental analysis failed: {str(e)}")

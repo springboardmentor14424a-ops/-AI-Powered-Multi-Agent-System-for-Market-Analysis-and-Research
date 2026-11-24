@@ -1,3 +1,4 @@
+import FundamentalPanel from './FundamentalPanel';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -685,6 +686,11 @@ function Dashboard() {
                 {renderFinancialTable()}
               </div>
             )}
+          </div>
+
+          {/* MODULE 3: Fundamental Analysis Agent */}
+          <div style={{ width: '100%' }}>
+            <FundamentalPanel defaultMarket={preferredMarket} />
           </div>
 
           {/* Research History Section */}
