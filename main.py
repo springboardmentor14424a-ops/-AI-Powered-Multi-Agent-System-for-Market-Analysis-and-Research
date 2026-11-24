@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security import OAuth2PasswordRequestForm
 from database import engine, get_db
 import models
 import schemas
+import pandas as pd
 import yfinance as yf
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config
@@ -18,11 +19,22 @@ from fastapi.responses import RedirectResponse
 import os
 import secrets
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi import FastAPI
+from pathlib import Path
+import joblib
+from pydantic import BaseModel
 
 # Automatically create tables if non-existent
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+BASE_DIR = Path(__file__).resolve().parent
+ARTIFACT_DIR = BASE_DIR / "notebooks"/ "artifacts"
+
+rf_model = joblib.load(ARTIFACT_DIR / "nse_rf_model.joblib")
+rf_scaler = joblib.load(ARTIFACT_DIR / "nse_scaler.joblib")
+rf_features = joblib.load(ARTIFACT_DIR / "nse_feature_cols.joblib")
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "your_super_secret_key"))
 
@@ -198,46 +210,120 @@ def process_research_task(task_id: int, db: Session):
         db.commit()
         print(f"Error processing task {task_id}: {e}")
 
+def format_ticker_for_market(raw_ticker: str, market: str | None) -> str:
+    symbol = raw_ticker.strip().upper()
+    mkt = (market or "").strip().upper()
+
+    if symbol.endswith(".NS") or symbol.endswith(".BO"):
+        return symbol
+
+    if "NSE" in mkt:
+        return f"{symbol}.NS"
+    if "BSE" in mkt:
+        return f"{symbol}.BO"
+    return symbol
+
 @app.post("/research")
-def create_research_task(
-    task: schemas.ResearchTaskCreate, 
-    db: Session = Depends(get_db), 
-    current_user: models.User = Depends(get_current_user)
-):
-    # Validating ticker using yfinance
+def create_research_task(task: schemas.ResearchTaskCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     try:
-        stock = yf.Ticker(task.ticker.upper())
-        hist = stock.history(period="1d")
+        # Fetching live ticker data via yfinance using the requested period from frontend
+        formatted_ticker = format_ticker_for_market(task.ticker, task.market)
+        print("DEBUG -> ticker:", task.ticker, "| market:", task.market, "| formatted:", formatted_ticker)
+        stock = yf.Ticker(formatted_ticker)
+        hist = stock.history(period=task.requested_period)
+        
         if hist.empty:
             raise HTTPException(status_code=400, detail="Invalid ticker symbol or no data available.")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Could not validate ticker with Yahoo Finance.")
 
-    # Creating and saving research task associated with the logged-in user
-    new_task = models.ResearchTask(
-        ticker=task.ticker.upper(),
-        market=task.market,
-        requested_period=task.requested_period,
-        status="Pending",
-        user_id=current_user.id
-    )
-    db.add(new_task)
-    db.commit()
-    db.refresh(new_task)
-    
-    # Processing the task immediately to fetch data and update status to Completed
-    process_research_task(new_task.id, db)
-    
-    # Refresh again so the returned status reflects "Completed"
-    db.refresh(new_task)
+        info = stock.info or {}
+        company_profile = {
+            "company_name": info.get("longName") or info.get("shortName") or task.ticker.upper(),
+            "sector": info.get("sector", "N/A"),
+            "industry": info.get("industry", "N/A"),
+            "summary": info.get("longBusinessSummary", "No business summary available."),
+            "market_cap": info.get("marketCap"),
+            "website": info.get("website", "N/A")
+        }
 
-    return {
-        "message": "Research task created successfully",
-        "task_id": new_task.id,
-        "ticker": new_task.ticker,
-        "status": new_task.status
-    }
+        # 2. Financial Statements (Income Statement / Financials)
+        financials_list = []
+        try:
+            fin_df = stock.income_stmt
+            if fin_df is None or fin_df.empty:
+                fin_df = stock.financials
+            if fin_df is not None and not fin_df.empty:
+                # Grab top key metrics (Revenue, Net Income, Gross Profit) across available years
+                target_metrics = ["Total Revenue", "Gross Profit", "Operating Income", "Net Income"]
+                available_metrics = [m for m in target_metrics if m in fin_df.index]
 
+                if not available_metrics:
+                    available_metrics = list(fin_df.index[:4])
+        
+                for metric in available_metrics:
+                    row_data = {"metric": metric}
+                    for col_date in fin_df.columns[:3]:  # Last 3 fiscal years
+                        val = fin_df.loc[metric, col_date]
+                        date_str = col_date.strftime("%Y-%m-%d") if hasattr(col_date, "strftime") else str(col_date)
+                        row_data[date_str] = None if pd.isna(val) else float(val)
+                    financials_list.append(row_data)
+        except Exception as e:
+            print(f"Financials fetch warning for {task.ticker}: {e}")
+
+        # 3. Data Source & Retrieval Timestamp
+        metadata = {
+        "source": "Yahoo Finance (yfinance)",
+        "retrieved_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        # Getting latest close price and company name
+        latest_close = float(hist['Close'].iloc[-1])
+        company_name = stock.info.get('shortName', task.ticker.upper())
+
+        # Formatting OHLCV rows for your new frontend table
+        hist_reset = hist.reset_index()
+        ohlcv_list = []
+        for _, row in hist_reset.iterrows():
+            ohlcv_list.append({
+                "Date": row['Date'].strftime('%Y-%m-%d'),
+                "Open": float(row['Open']),
+                "High": float(row['High']),
+                "Low": float(row['Low']),
+                "Close": float(row['Close']),
+                "Volume": int(row['Volume'])
+            })
+
+        # Saving the research task to the database as Completed
+        new_task = models.ResearchTask(
+            ticker=task.ticker.strip().upper(),
+            market=task.market,
+            requested_period=task.requested_period,
+            status="Completed",
+            user_id=current_user.id
+        )
+        db.add(new_task)
+        db.commit()
+        db.refresh(new_task)
+
+        # Return the complete payload your frontend UI table is waiting for
+        return {
+            "id": new_task.id,
+            "ticker": new_task.ticker.strip().upper(),
+            "market": new_task.market,
+            "requested_period": new_task.requested_period,
+            "company_name": company_name,
+            "result_price": latest_close,
+            "status": "Completed",
+            "ohlcv": ohlcv_list,
+            "profile": company_profile,
+            "financials": financials_list,
+            "source": metadata["source"],
+            "retrieved_at": metadata["retrieved_at"],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not fetch market data: {str(e)}")
+        
 @app.get("/research/history")
 def get_research_history(
     db: Session = Depends(get_db), 
@@ -332,3 +418,38 @@ def update_user_preferences(prefs_update: schemas.UserPreferencesUpdate, db: Ses
     db.commit()
     db.refresh(prefs)
     return prefs
+
+@app.get("/api/search/{ticker}")
+def search_company(ticker: str):
+    try:
+        stock = yf.Ticker(ticker.upper())
+        info = stock.info
+        
+        # Checking if the ticker actually exists by looking for a valid field
+        if not info or "regularMarketPrice" in info and info["regularMarketPrice"] is None and "longBusinessSummary" not in info:
+            raise HTTPException(status_code=404, detail="Company or ticker not found.")
+            
+        return {
+            "symbol": ticker.upper(),
+            "shortName": info.get("shortName", info.get("longName", "N/A")),
+            "sector": info.get("sector", "N/A"),
+            "industry": info.get("industry", "N/A"),
+            "currency": info.get("currency", "USD"),
+            "exchange": info.get("exchange", "N/A")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Error fetching data: {str(e)}")
+
+class StockPredictionInput(BaseModel):
+  features: dict[str, float]
+
+@app.post("/predict")
+def predict_from_model(payload: StockPredictionInput):
+  row = {col: float(payload.features.get(col, 0.0)) for col in rf_features}
+  X_input = pd.DataFrame([row])[rf_features]
+  X_scaled = rf_scaler.transform(X_input)
+  prediction = float(rf_model.predict(X_scaled)[0])
+  return {
+      "predicted_close": prediction,
+      "features_used": rf_features,
+  }
