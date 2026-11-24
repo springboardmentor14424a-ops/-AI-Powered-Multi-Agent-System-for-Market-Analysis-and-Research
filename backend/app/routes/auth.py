@@ -1,3 +1,4 @@
+
 import secrets
 
 from fastapi import (
@@ -10,6 +11,7 @@ from fastapi import (
 )
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db, settings
 from app.models import User
@@ -23,7 +25,8 @@ from app.auth import (
     hash_password,
     verify_password,
     create_access_token,
-    get_current_user
+    get_current_user,
+    validate_csrf
 )
 
 
@@ -32,6 +35,10 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
+
+# --------------------------------------------------
+# AUTHENTICATION COOKIE CREATION
+# --------------------------------------------------
 
 def set_auth_cookies(response: Response, user_id: int):
 
@@ -59,29 +66,25 @@ def set_auth_cookies(response: Response, user_id: int):
     )
 
 
-def validate_csrf(request: Request):
+# --------------------------------------------------
+# USER REGISTRATION
+# --------------------------------------------------
 
-    cookie_token = request.cookies.get("csrf_token")
-    header_token = request.headers.get("X-CSRF-Token")
-
-    if (
-        not cookie_token
-        or not header_token
-        or not secrets.compare_digest(cookie_token, header_token)
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="CSRF validation failed"
-        )
-
-
-@router.post("/register", status_code=201)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(
     data: RegisterRequest,
     db: Session = Depends(get_db)
 ):
 
-    email = str(data.email).lower()
+    email = str(data.email).strip().lower()
+
+    full_name = data.full_name.strip()
+
+    if not full_name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Full name cannot be empty"
+        )
 
     existing_user = db.query(User).filter(
         User.email == email
@@ -89,25 +92,46 @@ def register(
 
     if existing_user:
         raise HTTPException(
-            status_code=409,
+            status_code=status.HTTP_409_CONFLICT,
             detail="Email is already registered"
         )
 
     user = User(
-        full_name=data.full_name.strip(),
+        full_name=full_name,
         email=email,
         password_hash=hash_password(data.password)
     )
 
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    except IntegrityError:
+
+        db.rollback()
+
+        existing_user = db.query(User).filter(
+            User.email == email
+        ).first()
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email is already registered"
+            )
+
+        raise
 
     return {
         "message": "Registration successful",
         "user_id": user.user_id
     }
 
+
+# --------------------------------------------------
+# USER LOGIN
+# --------------------------------------------------
 
 @router.post("/login")
 def login(
@@ -116,7 +140,7 @@ def login(
     db: Session = Depends(get_db)
 ):
 
-    email = str(data.email).lower()
+    email = str(data.email).strip().lower()
 
     user = db.query(User).filter(
         User.email == email
@@ -139,12 +163,20 @@ def login(
     }
 
 
+# --------------------------------------------------
+# GET CURRENT LOGGED-IN USER
+# --------------------------------------------------
+
 @router.get("/me", response_model=UserResponse)
 def get_me(
     user: User = Depends(get_current_user)
 ):
     return user
 
+
+# --------------------------------------------------
+# USER LOGOUT
+# --------------------------------------------------
 
 @router.post("/logout")
 def logout(

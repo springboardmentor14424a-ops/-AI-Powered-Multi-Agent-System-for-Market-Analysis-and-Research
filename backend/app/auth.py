@@ -1,3 +1,5 @@
+
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -13,6 +15,10 @@ from app.models import User
 password_hash = PasswordHash.recommended()
 
 
+# --------------------------------------------------
+# PASSWORD HASHING
+# --------------------------------------------------
+
 def hash_password(password: str) -> str:
     return password_hash.hash(password)
 
@@ -27,7 +33,11 @@ def verify_password(
     )
 
 
-def create_access_token(user_id: int):
+# --------------------------------------------------
+# JWT TOKEN CREATION
+# --------------------------------------------------
+
+def create_access_token(user_id: int) -> str:
 
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -44,6 +54,10 @@ def create_access_token(user_id: int):
         algorithm=settings.JWT_ALGORITHM
     )
 
+
+# --------------------------------------------------
+# AUTHENTICATED USER VERIFICATION
+# --------------------------------------------------
 
 def get_current_user(
     request: Request,
@@ -84,3 +98,23 @@ def get_current_user(
         )
 
     return user
+
+
+# --------------------------------------------------
+# CSRF PROTECTION
+# --------------------------------------------------
+
+def validate_csrf(request: Request):
+
+    cookie_token = request.cookies.get("csrf_token")
+    header_token = request.headers.get("X-CSRF-Token")
+
+    if (
+        not cookie_token
+        or not header_token
+        or not secrets.compare_digest(cookie_token, header_token)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF validation failed"
+        )

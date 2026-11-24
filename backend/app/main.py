@@ -2,20 +2,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import Base, engine
-from app import models
+from app.database import settings
 from app.routes import (
     auth,
     dashboard,
     research,
     watchlist,
     stock_search,
-    preferences
+    preferences,
+    stock_data
 )
-
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 
 # Initialize FastAPI
@@ -27,14 +23,23 @@ app = FastAPI(
 
 
 # CORS configuration
+allowed_origins = list({
+    settings.FRONTEND_ORIGIN,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+})
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS"
+    ],
     allow_headers=[
         "Content-Type",
         "X-CSRF-Token"
@@ -49,6 +54,7 @@ app.include_router(research.router)
 app.include_router(watchlist.router)
 app.include_router(stock_search.router)
 app.include_router(preferences.router)
+app.include_router(stock_data.router)
 
 
 # Home endpoint

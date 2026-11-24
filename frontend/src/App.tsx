@@ -8,10 +8,39 @@ import {
   BarChart3,
   Search,
   Trash2,
-  Settings
+  Settings,
+  Eye,
+  RefreshCw,
+  X
 } from "lucide-react";
 
 import { api } from "./api";
+
+// --------------------------------------------------
+// SUPPORTED PREFERENCES
+// --------------------------------------------------
+
+const SUPPORTED_MARKETS = [
+  { value: "NSE", label: "NSE — National Stock Exchange of India" },
+  { value: "BSE", label: "BSE — Bombay Stock Exchange" },
+  { value: "NASDAQ", label: "NASDAQ — United States" },
+  { value: "NYSE", label: "NYSE — New York Stock Exchange" }
+];
+
+const SUPPORTED_PERIODS = [
+  { value: "1M", label: "1 Month" },
+  { value: "3M", label: "3 Months" },
+  { value: "6M", label: "6 Months" },
+  { value: "1Y", label: "1 Year" },
+  { value: "5Y", label: "5 Years" }
+];
+
+const DEFAULT_MARKET = "NASDAQ";
+const DEFAULT_PERIOD = "3M";
+
+// --------------------------------------------------
+// TYPES
+// --------------------------------------------------
 
 type User = {
   user_id: number;
@@ -32,6 +61,7 @@ type DashboardData = {
 type SavedStock = {
   saved_stock_id: number;
   ticker: string;
+  market: string;
   created_at: string | null;
   current_price: number | null;
   daily_change_percent: number | null;
@@ -41,6 +71,7 @@ type StockSearchResult = {
   ticker: string;
   company_name: string;
   exchange: string | null;
+  market: string | null;
   type: string;
 };
 
@@ -68,12 +99,134 @@ type UserPreferences = {
   updated_at: string | null;
 };
 
+type StockProfile = {
+  ticker: string;
+  provider_symbol: string;
+  company_name: string;
+  market: string;
+  exchange: string | null;
+  sector: string | null;
+  industry: string | null;
+  description: string | null;
+  country: string | null;
+  currency: string | null;
+  website: string | null;
+  market_cap: number | null;
+  employees: number | null;
+  data_provider: string;
+  retrieved_at: string;
+};
+
+type StockHistoryRecord = {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  adjusted_close: number | null;
+  volume: number;
+};
+
+type StockHistory = {
+  ticker: string;
+  provider_symbol: string;
+  market: string;
+  period: string;
+  interval: string;
+  currency: string | null;
+  records: StockHistoryRecord[];
+  record_count: number;
+  validation: {
+    is_valid: boolean;
+    valid_rows: number;
+    invalid_rows: number;
+    missing_values: number;
+    adjusted_close_missing: number;
+    invalid_timestamps: number;
+    duplicate_rows: number;
+  };
+  data_provider: string;
+  retrieved_at: string;
+};
+
+type FinancialStatementPeriod = {
+  period_end: string;
+  values: Record<string, number | null>;
+};
+
+type FinancialStatement = {
+  statement_type: string;
+  frequency: string;
+  periods: FinancialStatementPeriod[];
+};
+
+type StockFinancials = {
+  ticker: string;
+  provider_symbol: string;
+  market: string;
+  currency: string | null;
+  statements: FinancialStatement[];
+  available_statements: string[];
+  unavailable_statements: string[];
+  data_provider: string;
+  retrieved_at: string;
+};
+
+type SelectedStock = {
+  ticker: string;
+  market: string;
+};
+
 type Page =
   | "loading"
   | "landing"
   | "login"
   | "register"
   | "dashboard";
+
+// --------------------------------------------------
+// FORMATTING HELPERS
+// --------------------------------------------------
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Not available";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return date.toLocaleString();
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "Not available";
+  }
+
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: 2
+  });
+}
+
+function formatFinancialValue(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return "Not available";
+  }
+
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: 2
+  });
+}
+
+function formatStatementName(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+// --------------------------------------------------
+// APPLICATION
+// --------------------------------------------------
 
 export default function App() {
   const [page, setPage] = useState<Page>("loading");
@@ -94,8 +247,8 @@ export default function App() {
   const [ticker, setTicker] = useState("");
 
   // USER PREFERENCES
-  const [market, setMarket] = useState("US");
-  const [period, setPeriod] = useState("3 months");
+  const [market, setMarket] = useState(DEFAULT_MARKET);
+  const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [preferencesBusy, setPreferencesBusy] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(false);
 
@@ -106,6 +259,8 @@ export default function App() {
     useState<SavedStock[]>([]);
 
   const [watchlistTicker, setWatchlistTicker] = useState("");
+  const [watchlistMarket, setWatchlistMarket] =
+    useState(DEFAULT_MARKET);
   const [watchlistBusy, setWatchlistBusy] = useState(false);
 
   // STOCK SEARCH STATE
@@ -118,6 +273,31 @@ export default function App() {
   const [researchBusy, setResearchBusy] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
   const [dashboardBusy, setDashboardBusy] = useState(false);
+
+  // STOCK DETAILS STATE
+  const [selectedStock, setSelectedStock] =
+    useState<SelectedStock | null>(null);
+
+  const [stockProfile, setStockProfile] =
+    useState<StockProfile | null>(null);
+
+  const [stockHistory, setStockHistory] =
+    useState<StockHistory | null>(null);
+
+  const [stockFinancials, setStockFinancials] =
+    useState<StockFinancials | null>(null);
+
+  const [detailsPeriod, setDetailsPeriod] =
+    useState(DEFAULT_PERIOD);
+
+  const [detailsBusy, setDetailsBusy] = useState(false);
+
+  const [detailsErrors, setDetailsErrors] =
+    useState<string[]>([]);
+
+  // --------------------------------------------------
+  // LOAD DASHBOARD
+  // --------------------------------------------------
 
   async function loadDashboard() {
     setDashboardBusy(true);
@@ -136,6 +316,10 @@ export default function App() {
     }
   }
 
+  // --------------------------------------------------
+  // LOAD RESEARCH HISTORY
+  // --------------------------------------------------
+
   async function loadResearchHistory() {
     setHistoryBusy(true);
 
@@ -153,6 +337,10 @@ export default function App() {
     }
   }
 
+  // --------------------------------------------------
+  // LOAD WATCHLIST
+  // --------------------------------------------------
+
   async function loadWatchlist() {
     try {
       const data = await api("/api/watchlist");
@@ -166,7 +354,10 @@ export default function App() {
     }
   }
 
+  // --------------------------------------------------
   // LOAD USER PREFERENCES
+  // --------------------------------------------------
+
   async function loadPreferences() {
     setPreferencesLoading(true);
 
@@ -174,8 +365,28 @@ export default function App() {
       const data: UserPreferences =
         await api("/api/preferences");
 
-      setMarket(data.market);
-      setPeriod(data.research_period);
+      if (
+        SUPPORTED_MARKETS.some(
+          (item) => item.value === data.market
+        )
+      ) {
+        setMarket(data.market);
+      } else {
+        setMarket(DEFAULT_MARKET);
+        setMessage(
+          "Please confirm your preferred exchange and save your preferences."
+        );
+      }
+
+      if (
+        SUPPORTED_PERIODS.some(
+          (item) => item.value === data.research_period
+        )
+      ) {
+        setPeriod(data.research_period);
+      } else {
+        setPeriod(DEFAULT_PERIOD);
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -187,7 +398,10 @@ export default function App() {
     }
   }
 
+  // --------------------------------------------------
   // SAVE USER PREFERENCES
+  // --------------------------------------------------
+
   async function savePreferences(
     e: React.FormEvent<HTMLFormElement>
   ) {
@@ -212,7 +426,9 @@ export default function App() {
       setMarket(data.market);
       setPeriod(data.research_period);
 
-      setMessage("Your preferences have been saved successfully!");
+      setMessage(
+        "Your preferences have been saved successfully!"
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -224,6 +440,10 @@ export default function App() {
     }
   }
 
+  // --------------------------------------------------
+  // LOAD ALL DASHBOARD CONTENT
+  // --------------------------------------------------
+
   async function loadDashboardContent() {
     await Promise.all([
       loadDashboard(),
@@ -233,8 +453,119 @@ export default function App() {
     ]);
   }
 
+  // --------------------------------------------------
+  // LOAD SELECTED STOCK DETAILS
+  // --------------------------------------------------
+
+  async function loadStockDetails(
+    stockTicker: string,
+    stockMarket: string,
+    selectedPeriod: string = detailsPeriod
+  ) {
+    setSelectedStock({
+      ticker: stockTicker,
+      market: stockMarket
+    });
+
+    setDetailsPeriod(selectedPeriod);
+    setDetailsBusy(true);
+    setDetailsErrors([]);
+
+    setStockProfile(null);
+    setStockHistory(null);
+    setStockFinancials(null);
+
+    const encodedTicker = encodeURIComponent(stockTicker);
+
+    const requests = await Promise.allSettled([
+      api(
+        `/api/stocks/${encodedTicker}/profile?market=${encodeURIComponent(stockMarket)}`
+      ),
+      api(
+        `/api/stocks/${encodedTicker}/history?market=${encodeURIComponent(stockMarket)}&period=${encodeURIComponent(selectedPeriod)}`
+      ),
+      api(
+        `/api/stocks/${encodedTicker}/financials?market=${encodeURIComponent(stockMarket)}`
+      )
+    ]);
+
+    const errors: string[] = [];
+
+    if (requests[0].status === "fulfilled") {
+      setStockProfile(requests[0].value as StockProfile);
+    } else {
+      errors.push(
+        `Company profile: ${
+          requests[0].reason instanceof Error
+            ? requests[0].reason.message
+            : "Unable to load profile"
+        }`
+      );
+    }
+
+    if (requests[1].status === "fulfilled") {
+      setStockHistory(requests[1].value as StockHistory);
+    } else {
+      errors.push(
+        `Historical data: ${
+          requests[1].reason instanceof Error
+            ? requests[1].reason.message
+            : "Unable to load historical data"
+        }`
+      );
+    }
+
+    if (requests[2].status === "fulfilled") {
+      setStockFinancials(requests[2].value as StockFinancials);
+    } else {
+      errors.push(
+        `Financial statements: ${
+          requests[2].reason instanceof Error
+            ? requests[2].reason.message
+            : "Unable to load financial statements"
+        }`
+      );
+    }
+
+    setDetailsErrors(errors);
+    setDetailsBusy(false);
+  }
+
+  // --------------------------------------------------
+  // CHANGE HISTORICAL DATA PERIOD
+  // --------------------------------------------------
+
+  async function changeDetailsPeriod(newPeriod: string) {
+    setDetailsPeriod(newPeriod);
+
+    if (!selectedStock) return;
+
+    await loadStockDetails(
+      selectedStock.ticker,
+      selectedStock.market,
+      newPeriod
+    );
+  }
+
+  // --------------------------------------------------
+  // CLOSE STOCK DETAILS
+  // --------------------------------------------------
+
+  function closeStockDetails() {
+    setSelectedStock(null);
+    setStockProfile(null);
+    setStockHistory(null);
+    setStockFinancials(null);
+    setDetailsErrors([]);
+  }
+
+  // --------------------------------------------------
   // SEARCH STOCKS
-  async function searchStocks(e: React.FormEvent<HTMLFormElement>) {
+  // --------------------------------------------------
+
+  async function searchStocks(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
 
     const cleanQuery = searchQuery.trim();
@@ -272,8 +603,20 @@ export default function App() {
     }
   }
 
-  // ADD A SEARCH RESULT TO WATCHLIST
-  async function addSearchResultToWatchlist(stock: StockSearchResult) {
+  // --------------------------------------------------
+  // ADD SEARCH RESULT TO WATCHLIST
+  // --------------------------------------------------
+
+  async function addSearchResultToWatchlist(
+    stock: StockSearchResult
+  ) {
+    if (!stock.market) {
+      setError(
+        "This stock belongs to an unsupported or unidentified exchange."
+      );
+      return;
+    }
+
     setError("");
     setMessage("");
     setWatchlistBusy(true);
@@ -282,7 +625,8 @@ export default function App() {
       await api("/api/watchlist", {
         method: "POST",
         body: JSON.stringify({
-          ticker: stock.ticker
+          ticker: stock.ticker,
+          market: stock.market
         })
       });
 
@@ -300,7 +644,10 @@ export default function App() {
     }
   }
 
+  // --------------------------------------------------
   // ADD STOCK USING WATCHLIST INPUT
+  // --------------------------------------------------
+
   async function addToWatchlist(
     e: React.FormEvent<HTMLFormElement>
   ) {
@@ -321,7 +668,8 @@ export default function App() {
       await api("/api/watchlist", {
         method: "POST",
         body: JSON.stringify({
-          ticker: cleanTicker
+          ticker: cleanTicker,
+          market: watchlistMarket
         })
       });
 
@@ -340,8 +688,13 @@ export default function App() {
     }
   }
 
+  // --------------------------------------------------
   // REMOVE STOCK FROM WATCHLIST
-  async function removeFromWatchlist(savedStockId: number) {
+  // --------------------------------------------------
+
+  async function removeFromWatchlist(
+    savedStockId: number
+  ) {
     setError("");
     setMessage("");
 
@@ -351,6 +704,18 @@ export default function App() {
       });
 
       setMessage("Stock removed from your watchlist.");
+
+      if (
+        selectedStock &&
+        savedStocks.some(
+          (stock) =>
+            stock.saved_stock_id === savedStockId &&
+            stock.ticker === selectedStock.ticker &&
+            stock.market === selectedStock.market
+        )
+      ) {
+        closeStockDetails();
+      }
 
       await loadWatchlist();
     } catch (err) {
@@ -362,8 +727,14 @@ export default function App() {
     }
   }
 
-  // CREATE RESEARCH TASK FOR A SPECIFIC TICKER
-  async function startResearchForStock(stockTicker: string) {
+  // --------------------------------------------------
+  // CREATE RESEARCH TASK
+  // --------------------------------------------------
+
+  async function startResearchForStock(
+    stockTicker: string,
+    stockMarket: string = market
+  ) {
     setError("");
     setMessage("");
     setResearchBusy(true);
@@ -373,7 +744,7 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({
           ticker: stockTicker.trim().toUpperCase(),
-          market,
+          market: stockMarket,
           requested_period: period
         })
       });
@@ -397,7 +768,10 @@ export default function App() {
     }
   }
 
-  // CREATE RESEARCH TASK USING THE RESEARCH FORM
+  // --------------------------------------------------
+  // CREATE RESEARCH TASK USING FORM
+  // --------------------------------------------------
+
   async function createResearchTask(
     e: React.FormEvent<HTMLFormElement>
   ) {
@@ -411,7 +785,10 @@ export default function App() {
     await startResearchForStock(ticker);
   }
 
+  // --------------------------------------------------
   // CHECK EXISTING LOGIN SESSION
+  // --------------------------------------------------
+
   useEffect(() => {
     api("/api/auth/me")
       .then(async (data) => {
@@ -424,8 +801,13 @@ export default function App() {
       });
   }, []);
 
+  // --------------------------------------------------
   // REGISTER USER
-  async function register(e: React.FormEvent<HTMLFormElement>) {
+  // --------------------------------------------------
+
+  async function register(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
 
     setError("");
@@ -454,15 +836,22 @@ export default function App() {
       setPage("login");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Registration failed"
+        err instanceof Error
+          ? err.message
+          : "Registration failed"
       );
     } finally {
       setBusy(false);
     }
   }
 
+  // --------------------------------------------------
   // LOGIN USER
-  async function login(e: React.FormEvent<HTMLFormElement>) {
+  // --------------------------------------------------
+
+  async function login(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
 
     setError("");
@@ -484,14 +873,19 @@ export default function App() {
       await loadDashboardContent();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Login failed"
+        err instanceof Error
+          ? err.message
+          : "Login failed"
       );
     } finally {
       setBusy(false);
     }
   }
 
+  // --------------------------------------------------
   // LOGOUT USER
+  // --------------------------------------------------
+
   async function logout() {
     setError("");
 
@@ -508,18 +902,27 @@ export default function App() {
       setSearchQuery("");
       setSearchPerformed(false);
 
-      setMarket("US");
-      setPeriod("3 months");
+      closeStockDetails();
+
+      setMarket(DEFAULT_MARKET);
+      setWatchlistMarket(DEFAULT_MARKET);
+      setPeriod(DEFAULT_PERIOD);
+      setDetailsPeriod(DEFAULT_PERIOD);
 
       setPage("landing");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Logout failed"
+        err instanceof Error
+          ? err.message
+          : "Logout failed"
       );
     }
   }
 
+  // --------------------------------------------------
   // LOADING SCREEN
+  // --------------------------------------------------
+
   if (page === "loading") {
     return (
       <div className="center-screen">
@@ -529,7 +932,10 @@ export default function App() {
     );
   }
 
+  // --------------------------------------------------
   // LANDING PAGE
+  // --------------------------------------------------
+
   if (page === "landing") {
     return (
       <div className="landing">
@@ -661,7 +1067,10 @@ export default function App() {
     );
   }
 
+  // --------------------------------------------------
   // REGISTRATION AND LOGIN PAGES
+  // --------------------------------------------------
+
   if (page === "login" || page === "register") {
     const isRegister = page === "register";
 
@@ -794,7 +1203,10 @@ export default function App() {
     );
   }
 
+  // --------------------------------------------------
   // AUTHENTICATED DASHBOARD
+  // --------------------------------------------------
+
   return (
     <div className="dashboard">
       <nav className="dashboard-nav">
@@ -831,6 +1243,7 @@ export default function App() {
         {error && <div className="error-message">{error}</div>}
 
         {/* DASHBOARD STATISTICS */}
+
         <div className="dashboard-grid">
           <div className="dashboard-card">
             <Activity />
@@ -865,6 +1278,7 @@ export default function App() {
         </div>
 
         {/* USER PREFERENCES */}
+
         <div className="account-panel">
           <h2>
             <Settings
@@ -878,7 +1292,7 @@ export default function App() {
           </h2>
 
           <p>
-            Choose your preferred stock market and research
+            Choose your preferred stock exchange and research
             period. StockPilot will use these settings when
             creating new research tasks.
           </p>
@@ -888,13 +1302,16 @@ export default function App() {
           ) : (
             <form onSubmit={savePreferences}>
               <label>
-                Preferred Market
+                Preferred Stock Exchange
                 <select
                   value={market}
                   onChange={(e) => setMarket(e.target.value)}
                 >
-                  <option value="US">United States (US)</option>
-                  <option value="India">India</option>
+                  {SUPPORTED_MARKETS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
               </label>
 
@@ -904,10 +1321,11 @@ export default function App() {
                   value={period}
                   onChange={(e) => setPeriod(e.target.value)}
                 >
-                  <option value="1 month">1 Month</option>
-                  <option value="3 months">3 Months</option>
-                  <option value="6 months">6 Months</option>
-                  <option value="1 year">1 Year</option>
+                  {SUPPORTED_PERIODS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
               </label>
 
@@ -925,12 +1343,14 @@ export default function App() {
         </div>
 
         {/* STOCK SEARCH */}
+
         <div className="account-panel">
           <h2>Stock Search</h2>
 
           <p>
             Search for companies by name or ticker symbol.
-            Add stocks to your Watchlist or start researching them.
+            Add stocks to your Watchlist, view their market data
+            or start researching them.
           </p>
 
           <form onSubmit={searchStocks}>
@@ -978,11 +1398,16 @@ export default function App() {
                       {stock.exchange || "Not available"}
                     </p>
 
+                    <p>
+                      <strong>StockPilot Market:</strong>{" "}
+                      {stock.market || "Unsupported / unidentified"}
+                    </p>
+
                     <div className="nav-buttons">
                       <button
                         className="primary-btn"
                         type="button"
-                        disabled={watchlistBusy}
+                        disabled={watchlistBusy || !stock.market}
                         onClick={() =>
                           addSearchResultToWatchlist(stock)
                         }
@@ -993,9 +1418,24 @@ export default function App() {
                       <button
                         className="outline-btn"
                         type="button"
-                        disabled={researchBusy}
+                        disabled={!stock.market || detailsBusy}
                         onClick={() =>
-                          startResearchForStock(stock.ticker)
+                          loadStockDetails(stock.ticker, stock.market!)
+                        }
+                      >
+                        <Eye size={16} />
+                        View Details
+                      </button>
+
+                      <button
+                        className="outline-btn"
+                        type="button"
+                        disabled={researchBusy || !stock.market}
+                        onClick={() =>
+                          startResearchForStock(
+                            stock.ticker,
+                            stock.market!
+                          )
                         }
                       >
                         Start Research
@@ -1008,7 +1448,442 @@ export default function App() {
           )}
         </div>
 
+        {/* STOCK DETAILS */}
+
+        {selectedStock && (
+          <div className="account-panel stock-details-panel">
+            <div className="stock-details-heading">
+              <div>
+                <small>MARKET INTELLIGENCE</small>
+                <h2>
+                  {stockProfile?.company_name || selectedStock.ticker}
+                </h2>
+                <p>
+                  {selectedStock.ticker} · {selectedStock.market}
+                  {stockProfile?.exchange
+                    ? ` · ${stockProfile.exchange}`
+                    : ""}
+                </p>
+              </div>
+
+              <button
+                className="outline-btn"
+                type="button"
+                onClick={closeStockDetails}
+              >
+                <X size={17} />
+                Close
+              </button>
+            </div>
+
+            {detailsBusy && (
+              <p className="details-loading">
+                <Activity size={18} />
+                Loading stock market data...
+              </p>
+            )}
+
+            {detailsErrors.length > 0 && (
+              <div className="error-message">
+                <strong>Some market data could not be loaded:</strong>
+                <ul>
+                  {detailsErrors.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* COMPANY PROFILE */}
+
+            <div className="details-section">
+              <h3>Company Profile</h3>
+
+              {!stockProfile && !detailsBusy ? (
+                <p>Company profile is unavailable.</p>
+              ) : stockProfile ? (
+                <>
+                  <div className="details-grid">
+                    <div>
+                      <span>Company Name</span>
+                      <strong>{stockProfile.company_name}</strong>
+                    </div>
+
+                    <div>
+                      <span>Ticker</span>
+                      <strong>{stockProfile.ticker}</strong>
+                    </div>
+
+                    <div>
+                      <span>Provider Symbol</span>
+                      <strong>{stockProfile.provider_symbol}</strong>
+                    </div>
+
+                    <div>
+                      <span>Market</span>
+                      <strong>{stockProfile.market}</strong>
+                    </div>
+
+                    <div>
+                      <span>Exchange</span>
+                      <strong>{stockProfile.exchange || "Not available"}</strong>
+                    </div>
+
+                    <div>
+                      <span>Sector</span>
+                      <strong>{stockProfile.sector || "Not available"}</strong>
+                    </div>
+
+                    <div>
+                      <span>Industry</span>
+                      <strong>{stockProfile.industry || "Not available"}</strong>
+                    </div>
+
+                    <div>
+                      <span>Country</span>
+                      <strong>{stockProfile.country || "Not available"}</strong>
+                    </div>
+
+                    <div>
+                      <span>Currency</span>
+                      <strong>{stockProfile.currency || "Not available"}</strong>
+                    </div>
+
+                    <div>
+                      <span>Market Capitalization</span>
+                      <strong>{formatNumber(stockProfile.market_cap)}</strong>
+                    </div>
+
+                    <div>
+                      <span>Employees</span>
+                      <strong>{formatNumber(stockProfile.employees)}</strong>
+                    </div>
+
+                    <div>
+                      <span>Website</span>
+                      {stockProfile.website ? (
+                        <a
+                          href={stockProfile.website}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Visit company website
+                        </a>
+                      ) : (
+                        <strong>Not available</strong>
+                      )}
+                    </div>
+                  </div>
+
+                  {stockProfile.description && (
+                    <div className="company-description">
+                      <h4>Business Description</h4>
+                      <p>{stockProfile.description}</p>
+                    </div>
+                  )}
+
+                  <p className="data-metadata">
+                    Source: {stockProfile.data_provider} · Retrieved:{" "}
+                    {formatDate(stockProfile.retrieved_at)}
+                  </p>
+                </>
+              ) : null}
+            </div>
+
+            {/* HISTORICAL DATA */}
+
+            <div className="details-section">
+              <div className="details-section-heading">
+                <h3>Historical Market Data</h3>
+
+                <label>
+                  Period
+                  <select
+                    value={detailsPeriod}
+                    disabled={detailsBusy}
+                    onChange={(e) =>
+                      changeDetailsPeriod(e.target.value)
+                    }
+                  >
+                    {SUPPORTED_PERIODS.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {stockHistory && (
+                <>
+                  <div className="details-grid">
+                    <div>
+                      <span>Records</span>
+                      <strong>{stockHistory.record_count}</strong>
+                    </div>
+
+                    <div>
+                      <span>Interval</span>
+                      <strong>{stockHistory.interval}</strong>
+                    </div>
+
+                    <div>
+                      <span>Currency</span>
+                      <strong>{stockHistory.currency || "Not available"}</strong>
+                    </div>
+
+                    <div>
+                      <span>Data Validation</span>
+                      <strong>
+                        {stockHistory.validation.is_valid
+                          ? "Valid"
+                          : "Issues detected"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="validation-grid">
+                    <div>
+                      <span>Valid Rows</span>
+                      <strong>{stockHistory.validation.valid_rows}</strong>
+                    </div>
+
+                    <div>
+                      <span>Invalid Rows</span>
+                      <strong>{stockHistory.validation.invalid_rows}</strong>
+                    </div>
+
+                    <div>
+                      <span>Missing Values</span>
+                      <strong>{stockHistory.validation.missing_values}</strong>
+                    </div>
+
+                    <div>
+                      <span>Missing Adjusted Close</span>
+                      <strong>
+                        {stockHistory.validation.adjusted_close_missing}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Invalid Timestamps</span>
+                      <strong>
+                        {stockHistory.validation.invalid_timestamps}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Duplicate Rows</span>
+                      <strong>{stockHistory.validation.duplicate_rows}</strong>
+                    </div>
+                  </div>
+
+                  {stockHistory.records.length === 0 ? (
+                    <p>No historical records are available.</p>
+                  ) : (
+                    <div className="table-scroll">
+                      <table className="market-data-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Open</th>
+                            <th>High</th>
+                            <th>Low</th>
+                            <th>Close</th>
+                            <th>Adjusted Close</th>
+                            <th>Volume</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {stockHistory.records.map((record, index) => (
+                            <tr key={`${record.timestamp}-${index}`}>
+                              <td>
+                                {new Date(record.timestamp).toLocaleDateString()}
+                              </td>
+                              <td>{formatNumber(record.open)}</td>
+                              <td>{formatNumber(record.high)}</td>
+                              <td>{formatNumber(record.low)}</td>
+                              <td>{formatNumber(record.close)}</td>
+                              <td>
+                                {formatNumber(record.adjusted_close)}
+                              </td>
+                              <td>{formatNumber(record.volume)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  <p className="data-metadata">
+                    Source: {stockHistory.data_provider} · Retrieved:{" "}
+                    {formatDate(stockHistory.retrieved_at)}
+                  </p>
+                </>
+              )}
+
+              {!stockHistory && !detailsBusy && (
+                <p>Historical market data is unavailable.</p>
+              )}
+            </div>
+
+            {/* FINANCIAL STATEMENTS */}
+
+            <div className="details-section">
+              <h3>Financial Statements</h3>
+
+              {stockFinancials && (
+                <>
+                  <div className="details-grid">
+                    <div>
+                      <span>Currency</span>
+                      <strong>
+                        {stockFinancials.currency || "Not available"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Available Statements</span>
+                      <strong>
+                        {stockFinancials.available_statements.length}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Unavailable Statements</span>
+                      <strong>
+                        {stockFinancials.unavailable_statements.length}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {stockFinancials.available_statements.length > 0 && (
+                    <p>
+                      <strong>Available:</strong>{" "}
+                      {stockFinancials.available_statements
+                        .map(formatStatementName)
+                        .join(", ")}
+                    </p>
+                  )}
+
+                  {stockFinancials.unavailable_statements.length > 0 && (
+                    <p>
+                      <strong>Unavailable:</strong>{" "}
+                      {stockFinancials.unavailable_statements
+                        .map(formatStatementName)
+                        .join(", ")}
+                    </p>
+                  )}
+
+                  {stockFinancials.statements.length === 0 ? (
+                    <p>No financial statement data is available.</p>
+                  ) : (
+                    stockFinancials.statements.map((statement, index) => (
+                      <div
+                        className="financial-statement"
+                        key={`${statement.statement_type}-${statement.frequency}-${index}`}
+                      >
+                        <h4>
+                          {formatStatementName(statement.statement_type)}
+                          {" — "}
+                          {statement.frequency}
+                        </h4>
+
+                        {statement.periods.length === 0 ? (
+                          <p>No reporting periods available.</p>
+                        ) : (
+                          <div className="table-scroll">
+                            <table className="market-data-table">
+                              <thead>
+                                <tr>
+                                  <th>Financial Metric</th>
+                                  {statement.periods.map((periodItem, periodIndex) => (
+                                    <th key={`${periodItem.period_end}-${periodIndex}`}>
+                                      {new Date(
+                                        periodItem.period_end
+                                      ).toLocaleDateString()}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+
+                              <tbody>
+                                {Object.keys(
+                                  statement.periods[0].values
+                                ).map((metric) => (
+                                  <tr key={metric}>
+                                    <td>{formatStatementName(metric)}</td>
+
+                                    {statement.periods.map(
+                                      (periodItem, periodIndex) => (
+                                        <td
+                                          key={`${metric}-${periodIndex}`}
+                                        >
+                                          {formatFinancialValue(
+                                            periodItem.values[metric] ?? null
+                                          )}
+                                        </td>
+                                      )
+                                    )}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+
+                  <p className="data-metadata">
+                    Source: {stockFinancials.data_provider} · Retrieved:{" "}
+                    {formatDate(stockFinancials.retrieved_at)}
+                  </p>
+                </>
+              )}
+
+              {!stockFinancials && !detailsBusy && (
+                <p>Financial statements are unavailable.</p>
+              )}
+            </div>
+
+            <div className="details-actions">
+              <button
+                className="primary-btn"
+                type="button"
+                disabled={detailsBusy}
+                onClick={() =>
+                  loadStockDetails(
+                    selectedStock.ticker,
+                    selectedStock.market,
+                    detailsPeriod
+                  )
+                }
+              >
+                <RefreshCw size={16} />
+                {detailsBusy ? "Refreshing..." : "Refresh Stock Data"}
+              </button>
+
+              <button
+                className="outline-btn"
+                type="button"
+                disabled={researchBusy}
+                onClick={() =>
+                  startResearchForStock(
+                    selectedStock.ticker,
+                    selectedStock.market
+                  )
+                }
+              >
+                Start Research
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* RESEARCH AND ACCOUNT FEATURES */}
+
         <div className="dashboard-grid">
           <div className="dashboard-card">
             <Search />
@@ -1034,13 +1909,16 @@ export default function App() {
               </label>
 
               <label>
-                Market
+                Stock Exchange
                 <select
                   value={market}
                   onChange={(e) => setMarket(e.target.value)}
                 >
-                  <option value="US">United States (US)</option>
-                  <option value="India">India</option>
+                  {SUPPORTED_MARKETS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
               </label>
 
@@ -1050,10 +1928,11 @@ export default function App() {
                   value={period}
                   onChange={(e) => setPeriod(e.target.value)}
                 >
-                  <option value="1 month">1 Month</option>
-                  <option value="3 months">3 Months</option>
-                  <option value="6 months">6 Months</option>
-                  <option value="1 year">1 Year</option>
+                  {SUPPORTED_PERIODS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
               </label>
 
@@ -1079,7 +1958,7 @@ export default function App() {
             </p>
 
             <span className="coming-soon">
-              Analysis module coming next
+              Stock data integration available above
             </span>
           </div>
 
@@ -1097,6 +1976,7 @@ export default function App() {
         </div>
 
         {/* WATCHLIST */}
+
         <div className="account-panel">
           <h2>My Watchlist</h2>
 
@@ -1117,6 +1997,20 @@ export default function App() {
                 }
                 placeholder="Example: AAPL, MSFT, GOOGL"
               />
+            </label>
+
+            <label>
+              Stock Exchange
+              <select
+                value={watchlistMarket}
+                onChange={(e) => setWatchlistMarket(e.target.value)}
+              >
+                {SUPPORTED_MARKETS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <button
@@ -1145,6 +2039,10 @@ export default function App() {
                   key={stock.saved_stock_id}
                 >
                   <h3>{stock.ticker}</h3>
+
+                  <p>
+                    <strong>Market:</strong> {stock.market}
+                  </p>
 
                   <p>
                     <strong>Latest Price:</strong>{" "}
@@ -1187,15 +2085,30 @@ export default function App() {
                       : "Not available"}
                   </p>
 
-                  <button
-                    className="outline-btn"
-                    onClick={() =>
-                      removeFromWatchlist(stock.saved_stock_id)
-                    }
-                  >
-                    <Trash2 size={16} />
-                    Remove
-                  </button>
+                  <div className="nav-buttons">
+                    <button
+                      className="outline-btn"
+                      type="button"
+                      disabled={detailsBusy}
+                      onClick={() =>
+                        loadStockDetails(stock.ticker, stock.market)
+                      }
+                    >
+                      <Eye size={16} />
+                      View Details
+                    </button>
+
+                    <button
+                      className="outline-btn"
+                      type="button"
+                      onClick={() =>
+                        removeFromWatchlist(stock.saved_stock_id)
+                      }
+                    >
+                      <Trash2 size={16} />
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1207,6 +2120,7 @@ export default function App() {
         )}
 
         {/* RESEARCH HISTORY */}
+
         <div className="account-panel">
           <h2>Research History</h2>
 
@@ -1249,9 +2163,7 @@ export default function App() {
 
                   <p>
                     <strong>Created:</strong>{" "}
-                    {task.created_at
-                      ? new Date(task.created_at).toLocaleString()
-                      : "Not available"}
+                    {formatDate(task.created_at)}
                   </p>
 
                   {task.report?.summary && (

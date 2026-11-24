@@ -1,41 +1,24 @@
-from typing import Optional
-from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    status
+)
 
-
-class ResearchReportResponse(BaseModel):
-    report_id: int
-    report_content: Optional[str] = None
-    summary: Optional[str] = None
-    limitations: Optional[str] = None
-    created_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ResearchHistoryResponse(BaseModel):
-    task_id: int
-    ticker: str
-    market: str
-    requested_period: str
-    status: str
-    created_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    report: Optional[ResearchReportResponse] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.auth import get_current_user
+from app.auth import get_current_user, validate_csrf
 from app.models import User, ResearchTask
 from app.schemas import (
     ResearchTaskCreate,
     ResearchHistoryResponse
+)
+from app.constants import (
+    SUPPORTED_MARKETS,
+    SUPPORTED_PERIODS
 )
 
 
@@ -44,6 +27,10 @@ router = APIRouter(
     tags=["Research History"]
 )
 
+
+# --------------------------------------------------
+# GET USER RESEARCH HISTORY
+# --------------------------------------------------
 
 @router.get(
     "/history",
@@ -78,18 +65,52 @@ def get_research_history(
         for task in research_tasks
     ]
 
-@router.post("/tasks", status_code=201)
+
+# --------------------------------------------------
+# CREATE RESEARCH TASK
+# --------------------------------------------------
+
+@router.post(
+    "/tasks",
+    status_code=status.HTTP_201_CREATED
+)
 def create_research_task(
     data: ResearchTaskCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
 
+    # Validate CSRF token before changing data
+    validate_csrf(request)
+
+    ticker = data.ticker.strip().upper()
+    market = data.market.strip().upper()
+    research_period = data.requested_period.strip().upper()
+
+    if not ticker:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stock ticker cannot be empty."
+        )
+
+    if market not in SUPPORTED_MARKETS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported exchange. Choose NSE, BSE, NASDAQ or NYSE."
+        )
+
+    if research_period not in SUPPORTED_PERIODS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported research period. Choose 1M, 3M, 6M, 1Y or 5Y."
+        )
+
     task = ResearchTask(
         user_id=current_user.user_id,
-        ticker=data.ticker.upper(),
-        market=data.market,
-        requested_period=data.requested_period,
+        ticker=ticker,
+        market=market,
+        requested_period=research_period,
         status="Pending"
     )
 
@@ -101,6 +122,7 @@ def create_research_task(
         "message": "Research task created successfully",
         "task_id": task.task_id,
         "ticker": task.ticker,
+        "market": task.market,
+        "requested_period": task.requested_period,
         "status": task.status
     }
-

@@ -20,11 +20,11 @@ class User(Base):
 
     __tablename__ = "users"
 
-    user_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, primary_key=True)
 
     full_name = Column(String(100), nullable=False)
 
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False)
 
     password_hash = Column(String(255), nullable=False)
 
@@ -75,13 +75,13 @@ class UserPreference(Base):
     market = Column(
         String(30),
         nullable=False,
-        default="US"
+        default="NASDAQ"
     )
 
     research_period = Column(
         String(30),
         nullable=False,
-        default="3 months"
+        default="3M"
     )
 
     updated_at = Column(
@@ -186,7 +186,8 @@ class SavedStock(Base):
         UniqueConstraint(
             "user_id",
             "ticker",
-            name="uq_saved_stock_user_ticker"
+            "market",
+            name="uq_saved_stock_user_ticker_market"
         ),
     )
 
@@ -208,9 +209,15 @@ class SavedStock(Base):
         nullable=False
     )
 
+    market = Column(
+        String(30),
+        nullable=False
+    )
+
     created_at = Column(
         DateTime(timezone=True),
-        server_default=func.now()
+        server_default=func.now(),
+        nullable=False
     )
 
     user = relationship(
