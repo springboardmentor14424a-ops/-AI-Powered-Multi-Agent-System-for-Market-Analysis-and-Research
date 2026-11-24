@@ -152,3 +152,34 @@ class MarketDataCollectionSummary(BaseModel):
     validation_status: str
     retrieved_at: datetime
 
+
+# Agent 3: Fundamental Analysis Schemas
+class FundamentalAnalyzeRequest(BaseModel):
+    ticker: str = Field(..., min_length=1, max_length=20)
+    market: str = Field(..., description="NSE, BSE, NASDAQ, or NYSE")
+    company_name: Optional[str] = None
+
+    @field_validator("market")
+    @classmethod
+    def validate_market(cls, v):
+        v_upper = v.upper()
+        if v_upper not in ALLOWED_MARKETS:
+            raise ValueError(f"Market must be one of {ALLOWED_MARKETS}")
+        return v_upper
+
+
+class FundamentalAnalysisSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    analysis_id: str
+    ticker: str
+    company_name: Optional[str] = None
+    market: str
+    currency: str
+    reporting_period: Optional[str] = None
+    overall_score: float
+    overall_verdict: str
+    data_source: str
+    retrieved_at: datetime
+
+

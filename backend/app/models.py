@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, Text, Boolean, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, Text, Boolean, Integer, Float
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -28,6 +28,7 @@ class User(Base):
     research_tasks = relationship("ResearchTask", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
     collected_market_data = relationship("MarketDataCollection", back_populates="user", cascade="all, delete-orphan")
+    fundamental_analyses = relationship("FundamentalAnalysis", back_populates="user", cascade="all, delete-orphan")
 
 
 class UserPreference(Base):
@@ -126,5 +127,31 @@ class MarketDataCollection(Base):
     created_at = Column(DateTime, default=utc_now, nullable=False)
 
     user = relationship("User", back_populates="collected_market_data")
+
+
+class FundamentalAnalysis(Base):
+    __tablename__ = "fundamental_analyses"
+
+    analysis_id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
+    user_id = Column(String(36), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String(20), nullable=False)
+    company_name = Column(String(255), nullable=True)
+    market = Column(String(20), nullable=False)  # NSE, BSE, NASDAQ, NYSE
+    currency = Column(String(10), default="USD", nullable=False)
+    reporting_period = Column(String(50), nullable=True)
+    data_source = Column(String(100), default="Yahoo Finance (yfinance API)", nullable=False)
+    retrieved_at = Column(DateTime, default=utc_now, nullable=False)
+    overall_score = Column(Float, default=0.0, nullable=False)
+    overall_verdict = Column(String(50), default="Neutral", nullable=False)
+    metrics = Column(Text, nullable=True)  # JSON string of all calculated ratios
+    historical_trends = Column(Text, nullable=True)  # JSON string of multi-year performance
+    peer_comparison = Column(Text, nullable=True)  # JSON string of peer benchmarks
+    risk_observations = Column(Text, nullable=True)  # JSON string of strengths & risks
+    missing_data_audit = Column(Text, nullable=True)  # JSON string of data gaps
+    executive_summary = Column(Text, nullable=True)  # AI-synthesized narrative
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    user = relationship("User", back_populates="fundamental_analyses")
+
 
 

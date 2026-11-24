@@ -3,11 +3,12 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ReportVisualizer from '../components/ReportVisualizer';
 import MarketDataCollectionTab from '../components/MarketDataCollectionTab';
+import FundamentalAnalysisTab from '../components/FundamentalAnalysisTab';
 import { 
   Bookmark, Trash2, Search, Sliders, History, 
   PlayCircle, FileText, CheckCircle, Clock, AlertTriangle,
   X, ExternalLink, ChevronRight, Sparkles, Building2, TrendingUp, AlertCircle, Printer,
-  Plus, Check, Eye, Database
+  Plus, Check, Eye, Database, Brain
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -515,6 +516,17 @@ export default function DashboardPage() {
           <span>Market Data Collection</span>
         </button>
         <button
+          onClick={() => setActiveTab('fundamental')}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
+            activeTab === 'fundamental'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+              : 'bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Brain size={14} />
+          <span>Fundamental Analysis Agent</span>
+        </button>
+        <button
           onClick={() => setActiveTab('history')}
           className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
             activeTab === 'history'
@@ -958,6 +970,14 @@ export default function DashboardPage() {
       {/* VIEW 3: Market Data Collection Module */}
       {activeTab === 'market-data' && (
         <MarketDataCollectionTab
+          onAddToWatchlist={handleAddToWatchlist}
+          watchlist={watchlist}
+        />
+      )}
+
+      {/* VIEW: Fundamental Analysis Agent */}
+      {activeTab === 'fundamental' && (
+        <FundamentalAnalysisTab
           onAddToWatchlist={handleAddToWatchlist}
           watchlist={watchlist}
         />
