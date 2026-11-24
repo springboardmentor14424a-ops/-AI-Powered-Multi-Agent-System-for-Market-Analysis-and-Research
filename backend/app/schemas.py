@@ -71,7 +71,7 @@ class PreferencesOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
- class ResearchCreate(BaseModel):
+class ResearchCreate(BaseModel):
     ticker: str
     market: Market | None = None
     requested_period: Period | None = None
@@ -95,3 +95,78 @@ class ResearchTaskOut(BaseModel):
     completed_at: datetime | None = None
 
     model_config = {"from_attributes": True}  
+
+class SearchResult(BaseModel):
+    symbol: str
+    name: str
+    exchange: str | None = None
+
+
+class PricePoint(BaseModel):
+    date: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+
+
+class ValidationReport(BaseModel):
+    rows_received: int
+    rows_returned: int
+    duplicates_removed: int
+    missing_removed: int
+    inconsistent_removed: int
+
+
+class HistoryOut(BaseModel):
+    ticker: str
+    symbol: str
+    market: str
+    period: str
+    source: str
+    retrieved_at: datetime
+    prices: list[PricePoint]
+    validation: ValidationReport
+
+class ProfileOut(BaseModel):
+    ticker: str
+    symbol: str
+    market: str
+    source: str
+    retrieved_at: datetime
+    profile: dict
+
+
+class FinancialRow(BaseModel):
+    item: str
+    values: list[float | None]
+
+
+class FinancialTable(BaseModel):
+    periods: list[str]
+    rows: list[FinancialRow]
+
+
+class FinancialsOut(BaseModel):
+    ticker: str
+    symbol: str
+    market: str
+    source: str
+    retrieved_at: datetime
+    currency: str | None = None
+    income_statement: FinancialTable
+    balance_sheet: FinancialTable
+    cash_flow: FinancialTable
+    notes: list[str]
+
+
+class SourceOut(BaseModel):
+    source_id: int
+    source_type: str
+    title: str
+    source_url: str | None = None
+    retrieved_at: datetime
+    content_hash: str
+
+    model_config = {"from_attributes": True}

@@ -1,5 +1,6 @@
 from sqlalchemy import (
-    Column, Integer, String, DateTime, ForeignKey, UniqueConstraint, func,
+    JSON, Column, DateTime, ForeignKey, Integer, String, Text,
+    UniqueConstraint, func,
 )
 from .database import Base
 
@@ -65,3 +66,60 @@ class ResearchTask(Base):
     status = Column(String(20), nullable=False, default="Pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AgentResult(Base):
+    __tablename__ = "agent_results"
+
+    result_id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(
+        Integer,
+        ForeignKey("research_tasks.task_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    agent_name = Column(String(50), nullable=False)
+    status = Column(String(20), nullable=False)
+    output_json = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class SourceDocument(Base):
+    __tablename__ = "source_documents"
+
+    source_id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(
+        Integer,
+        ForeignKey("research_tasks.task_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    source_type = Column(String(50), nullable=False)
+    title = Column(String(300), nullable=False)
+    source_url = Column(String(500), nullable=True)
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    retrieved_at = Column(DateTime(timezone=True), nullable=False)
+    content_hash = Column(String(64), nullable=False)
+
+
+class ResearchReport(Base):
+    __tablename__ = "research_reports"
+
+    report_id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(
+        Integer,
+        ForeignKey("research_tasks.task_id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    report_content = Column(Text, nullable=False)
+    summary = Column(Text, nullable=True)
+    limitations = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

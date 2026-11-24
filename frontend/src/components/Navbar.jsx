@@ -15,9 +15,17 @@ export default function Navbar() {
   return (
     <nav className="border-b border-slate-800">
       <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-        <Link to="/dashboard" className="text-lg font-bold text-emerald-400">
-          {APP_NAME}
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link to="/dashboard" className="text-lg font-bold text-emerald-400">
+            {APP_NAME}
+          </Link>
+          <Link to="/dashboard" className="text-slate-400 hover:text-slate-100 hidden sm:inline">
+            Dashboard
+          </Link>
+          <Link to="/market" className="text-slate-400 hover:text-slate-100 hidden sm:inline">
+            Market Data
+          </Link>
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-slate-400 hidden sm:inline">{user?.full_name}</span>
           <button

@@ -6,3 +6,6 @@ pydantic[email]
 bcrypt
 PyJWT
 python-dotenv
+yfinance
+pandas
+numpy
