@@ -4,10 +4,33 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import SavedStock, User
+from ..models import SavedStock, User, UserPreference
 from ..schemas import SavedStockCreate, SavedStockOut
+from ..services import market_data
+from ..services.market_data import NoDataError, ProviderError
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
+
+
+def verify_ticker(ticker: str, preferred_market: str) -> None:
+    markets = [preferred_market]
+    if preferred_market not in ("NASDAQ", "NYSE"):
+        markets.append("NASDAQ")
+    for market in markets:
+        try:
+            market_data.fetch_history(ticker, market, "1M")
+            return
+        except NoDataError:
+            continue
+        except ProviderError:
+            raise HTTPException(
+                status_code=502,
+                detail="Could not verify the ticker with Yahoo Finance right now. Please try again.",
+            )
+    raise HTTPException(
+        status_code=404,
+        detail=f"Ticker {ticker} was not found. Check the symbol, or change your market in Preferences.",
+    )
 
 
 @router.get("", response_model=list[SavedStockOut])
@@ -33,6 +56,9 @@ def add_saved(
     )
     if exists:
         raise HTTPException(status_code=400, detail="Already in your watchlist")
+
+    pref = db.get(UserPreference, current_user.user_id)
+    verify_ticker(data.ticker, pref.market if pref else "NSE")
 
     item = SavedStock(user_id=current_user.user_id, ticker=data.ticker)
     db.add(item)
