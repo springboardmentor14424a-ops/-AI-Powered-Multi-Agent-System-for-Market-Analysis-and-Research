@@ -1,3 +1,4 @@
+from ml_predictor import predict_stock_trend
 from fundamental_agent import run_fundamental_analysis
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends
@@ -305,3 +306,10 @@ def get_fundamental_analysis(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fundamental analysis failed: {str(e)}")
+
+@app.get("/agents/ml-predict/{symbol}")
+def get_ml_prediction(
+    symbol: str,
+    market: str = "NSE",
+):
+    return predict_stock_trend(symbol, market)

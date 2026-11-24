@@ -1,0 +1,22 @@
+{
+  "model_name": "Hist Gradient Boosting",
+  "accuracy_pct": 89.9,
+  "uses_scaled": false,
+  "features": [
+    "Prev Close",
+    "Open",
+    "High",
+    "Low",
+    "VWAP",
+    "Volume",
+    "daily_return",
+    "high_low_pct",
+    "open_prev_gap",
+    "close_to_vwap",
+    "ma_5",
+    "ma_20",
+    "volatility_5",
+    "price_to_ma5",
+    "ma5_to_ma20"
+  ]
+}

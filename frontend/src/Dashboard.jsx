@@ -1,4 +1,5 @@
 import FundamentalPanel from './FundamentalPanel';
+import MLPredictionPanel from './MLPredictionPanel';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -688,9 +689,10 @@ function Dashboard() {
             )}
           </div>
 
-          {/* MODULE 3: Fundamental Analysis Agent */}
+          {/* MODULE 3: Fundamental Analysis Agent & ML Trend Predictor */}
           <div style={{ width: '100%' }}>
             <FundamentalPanel defaultMarket={preferredMarket} />
+            <MLPredictionPanel defaultMarket={preferredMarket} />
           </div>
 
           {/* Research History Section */}
