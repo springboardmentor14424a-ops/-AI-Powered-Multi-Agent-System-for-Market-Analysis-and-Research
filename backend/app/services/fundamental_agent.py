@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import math
 import uuid
+import re
 
 from app.services.market_data_collection import format_ticker_for_market, search_market_companies
 
@@ -101,6 +102,8 @@ def format_number(val: Optional[float], currency: str = "USD") -> str:
     abs_val = abs(val)
 
     if currency == "INR":
+        if abs_val >= 1e12:
+            return f"{sym}{sign}{abs_val / 1e12:.2f} Lakh Cr"
         if abs_val >= 1e7:
             return f"{sym}{sign}{abs_val / 1e7:.2f} Cr"
         if abs_val >= 1e5:
@@ -626,6 +629,243 @@ def calculate_health_score(
         "risk_level": risk_level
     }
 
+def generate_executive_synthesis(
+    name: str,
+    ticker: str,
+    market: str,
+    sector: str,
+    industry: str,
+    currency: str,
+    info: Dict[str, Any],
+    hist_years: List[Dict[str, Any]],
+    rev_earnings: Dict[str, Any],
+    profitability: Dict[str, Any],
+    debt_stability: Dict[str, Any],
+    valuation: Dict[str, Any],
+    peer_benchmark: Dict[str, Any],
+    health_score: Dict[str, Any]
+) -> str:
+    """
+    Generates a deep, company-specific equity research synthesis dossier.
+    Synthesizes:
+    1. Strategic Corporate Profile & Executive Health Verdict
+    2. Growth Architecture & Multi-Year Financial Performance
+    3. Margin Architecture & Capital Compounding Quality
+    4. Balance Sheet Structure & Solvency Health
+    5. Valuation Multiples & Market Sentiment Expectations
+    6. Competitive Moat & Peer Group Benchmarking
+    7. Strategic Investment Outlook & Executive Conclusion
+    """
+    sections = []
+
+    # Title
+    sections.append(f"### Executive Fundamental Research Dossier: {name} ({ticker})")
+
+    # 1. Corporate Profile & Strategic Standing
+    mkt_cap_val = info.get("marketCap") or valuation.get("market_cap")
+    mkt_cap_str = format_number(mkt_cap_val, currency) if mkt_cap_val else "Undisclosed"
+
+    raw_desc = (info.get("longBusinessSummary") or "").strip()
+    business_intro = ""
+    if raw_desc:
+        cleaned = re.sub(r'\b(Inc|Ltd|Co|Corp)\.', r'\1[DOT]', raw_desc)
+        sentences = [s.replace('[DOT]', '.').strip() for s in cleaned.split('. ') if s.strip()]
+        if sentences:
+            intro_text = '. '.join(sentences[:2]).strip()
+            if not intro_text.endswith('.'):
+                intro_text += '.'
+            business_intro = f" {intro_text}"
+
+    p1 = (
+        f"**1. Strategic Corporate Profile & Executive Health Verdict**:\n"
+        f"{name} ({ticker}) is listed on the **{market}** operating within the **{sector}** sector (*{industry}*), "
+        f"commanding an aggregate market capitalization of **{mkt_cap_str}**.{business_intro}\n"
+        f"The company achieves an overall Fundamental Health Score of "
+        f"**{health_score['score']}/100 (Grade {health_score['grade']} – {health_score['verdict']})**, "
+        f"positioning it in the **{health_score['risk_level'].lower()}** financial risk tier."
+    )
+    sections.append(p1)
+
+    # 2. Growth Architecture & Multi-Year Financial Performance
+    latest_rev = rev_earnings.get("latest_revenue_formatted", "N/A")
+    latest_inc = rev_earnings.get("latest_net_income_formatted", "N/A")
+    rev_growth = rev_earnings.get("revenue_growth_yoy")
+    inc_growth = rev_earnings.get("earnings_growth_yoy")
+
+    hist_narrative = ""
+    if len(hist_years) >= 2:
+        chronological = list(reversed(hist_years))
+        first_yr = chronological[0]
+        last_yr = chronological[-1]
+        first_rev_str = format_number(first_yr.get("revenue"), currency)
+        last_rev_str = format_number(last_yr.get("revenue"), currency)
+        hist_narrative = (
+            f" Across the {len(hist_years)} audited fiscal periods from FY {first_yr.get('year')} to FY {last_yr.get('year')}, "
+            f"top-line revenue scaled from {first_rev_str} to {last_rev_str}."
+        )
+
+    leverage_narrative = ""
+    if rev_growth is not None and inc_growth is not None:
+        if inc_growth > rev_growth:
+            leverage_narrative = (
+                f" Net earnings growth ({inc_growth:+.2f}%) comfortably outpaced top-line revenue growth ({rev_growth:+.2f}%), "
+                f"demonstrating positive operating leverage and disciplined fixed-cost absorption."
+            )
+        elif inc_growth < rev_growth and inc_growth < 0:
+            leverage_narrative = (
+                f" While revenue expanded by {rev_growth:+.2f}%, net earnings contracted by {abs(inc_growth):.2f}%, "
+                f"indicating operating cost inflation, rising SG&A/input expenses, or margin compression."
+            )
+        elif inc_growth < rev_growth:
+            leverage_narrative = (
+                f" Net income expanded by {inc_growth:+.2f}%, trailing top-line growth of {rev_growth:+.2f}%, "
+                f"reflecting moderate operational reinvestment."
+            )
+
+    p2 = (
+        f"**2. Growth Architecture & Multi-Year Financial Performance**:\n"
+        f"In the most recent fiscal reporting period, {name} generated **{latest_rev}** in revenue "
+        f"({f'{rev_growth:+.2f}% YoY' if rev_growth is not None else 'flat YoY'}) and **{latest_inc}** in net earnings "
+        f"({f'{inc_growth:+.2f}% YoY' if inc_growth is not None else 'N/A'}).{hist_narrative}{leverage_narrative} "
+        f"Overall trajectory is classified as **{rev_earnings.get('trend_verdict', 'Stable')}**."
+    )
+    sections.append(p2)
+
+    # 3. Profitability Margins & Capital Compounding Quality
+    gross = profitability.get("gross_margin_pct")
+    op = profitability.get("operating_margin_pct")
+    net = profitability.get("net_margin_pct")
+    roe = profitability.get("roe_pct")
+    roa = profitability.get("roa_pct")
+
+    cf_narrative = ""
+    fcf = info.get("freeCashflow")
+    ocf = info.get("operatingCashflow")
+    if fcf or ocf:
+        fcf_str = format_number(fcf, currency) if fcf else "N/A"
+        ocf_str = format_number(ocf, currency) if ocf else "N/A"
+        cf_narrative = (
+            f" Earnings quality is supported by robust cash conversion, generating **{ocf_str}** in Operating Cash Flow "
+            f"and **{fcf_str}** in Free Cash Flow, providing substantial organic self-funding capability."
+        )
+
+    gross_str = f"{gross:.2f}%" if gross is not None else "N/A"
+    op_str = f"{op:.2f}%" if op is not None else "N/A"
+    net_str = f"{net:.2f}%" if net is not None else "N/A"
+    roe_str = f"{roe:.2f}%" if roe is not None else "N/A"
+    roa_str = f"{roa:.2f}%" if roa is not None else "N/A"
+
+    p3 = (
+        f"**3. Margin Architecture & Capital Efficiency (ROE / ROA)**:\n"
+        f"The firm operates with a **{gross_str}** Gross Margin, a **{op_str}** Operating Margin, and a **{net_str}** Net Profit Margin. "
+        f"Return on Equity (ROE) stands at **{roe_str}**, accompanied by a Return on Assets (ROA) of **{roa_str}**."
+        f" This demonstrates {'superior capital compounding well above standard hurdle rates' if (roe or 0) >= 20 else 'moderate equity returns'}.{cf_narrative}"
+    )
+    sections.append(p3)
+
+    # 4. Balance Sheet Resilience & Debt Solvency
+    solvency = debt_stability.get("solvency_grade", "Stable")
+    de_val = debt_stability.get("debt_to_equity")
+    cr_val = debt_stability.get("current_ratio")
+    tot_debt_str = debt_stability.get("total_debt_formatted", "N/A")
+    equity_str = debt_stability.get("stockholders_equity_formatted", "N/A")
+    de_str = f"{de_val:.2f}x" if de_val is not None else "N/A"
+    cr_str = f"{cr_val:.2f}x" if cr_val is not None else "N/A"
+
+    p4 = (
+        f"**4. Balance Sheet Structure & Solvency Health**:\n"
+        f"Classified as **{solvency}**. Total debt obligations stand at **{tot_debt_str}** against a stockholders' equity base of **{equity_str}**, "
+        f"yielding a Debt-to-Equity ratio of **{de_str}**. Short-term working capital liquidity is maintained with a Current Ratio of **{cr_str}** "
+        f"({'comfortably covering short-term obligations' if (cr_val or 0) >= 1.3 else 'adequate short-term liquidity buffer'}). "
+        f"{' '.join(debt_stability.get('financial_risks', []))}"
+    )
+    sections.append(p4)
+
+    # 5. Valuation Multiples & Market Sentiment Expectations
+    pe_val = valuation.get("pe_ratio")
+    fwd_pe = valuation.get("forward_pe")
+    pb_val = valuation.get("pb_ratio")
+    ev_ebitda = valuation.get("ev_to_ebitda")
+    val_status = valuation.get("valuation_verdict", "Fair")
+
+    pe_str = f"{pe_val:.2f}x" if pe_val is not None else "N/A"
+    fwd_str = f"{fwd_pe:.2f}x" if fwd_pe is not None else "N/A"
+    pb_str = f"{pb_val:.2f}x" if pb_val is not None else "N/A"
+    ev_str = f"{ev_ebitda:.2f}x" if ev_ebitda is not None else "N/A"
+
+    wall_st_str = ""
+    rating = info.get("recommendationKey") or valuation.get("analyst_rating")
+    target_p = info.get("targetMeanPrice") or valuation.get("wall_street_target")
+    opinions = info.get("numberOfAnalystOpinions")
+    if rating and rating != "N/A":
+        clean_rating = str(rating).upper().replace("_", " ")
+        t_sym = "₹" if currency == "INR" else "$"
+        target_str = f"{t_sym}{target_p:,.2f}" if target_p else "N/A"
+        wall_st_str = (
+            f" Institutional analyst consensus currently maintains a **{clean_rating}** rating"
+            f"{f' across {opinions} Wall Street analysts' if opinions else ''}, with a 12-month mean target price of **{target_str}**."
+        )
+
+    p5 = (
+        f"**5. Valuation Multiples & Market Sentiment Expectations**:\n"
+        f"{name} trades at a Trailing P/E of **{pe_str}**, Forward P/E of **{fwd_str}**, Price-to-Book (P/B) of **{pb_str}**, "
+        f"and EV/EBITDA of **{ev_str}**, positioned within the **{val_status}** band.{wall_st_str} "
+        f"{valuation.get('explanation', '')}"
+    )
+    sections.append(p5)
+
+    # 6. Competitive Moat & Peer Group Benchmarking
+    strengths_text = " ".join(peer_benchmark.get("relative_strengths", []))
+    weaknesses_text = " ".join(peer_benchmark.get("relative_weaknesses", []))
+    peer_count = peer_benchmark.get("peer_count", 0)
+
+    p6 = (
+        f"**6. Competitive Moat & Peer Group Benchmarking**:\n"
+        f"Benchmarked against {peer_count} leading direct competitors in the {sector} sector on the {market}: "
+        f"Key relative strengths: {strengths_text} "
+        f"Relative monitorables: {weaknesses_text}"
+    )
+    sections.append(p6)
+
+    # 7. Strategic Investment Outlook (Bull Thesis vs Key Risks)
+    bull_points = []
+    if (roe or 0) >= 15:
+        bull_points.append(f"high-tier capital compounding efficiency (ROE {roe:.1f}%)")
+    if (net or 0) >= 12:
+        bull_points.append(f"defensive net profit margins ({net:.1f}%)")
+    if de_val is not None and de_val <= 0.5:
+        bull_points.append(f"fortress balance sheet with minimal debt burden ({de_val:.2f}x D/E)")
+    if (rev_growth or 0) > 0:
+        bull_points.append(f"demonstrated top-line resilience ({rev_growth:+.2f}% YoY)")
+    if not bull_points:
+        bull_points.append("active operational footprint and continuous market participation")
+
+    risk_points = []
+    if pe_val and pe_val > 35:
+        risk_points.append(f"premium valuation multiple ({pe_val:.1f}x P/E) leaving limited margin of safety")
+    if rev_growth is not None and rev_growth < 0:
+        risk_points.append(f"top-line revenue contraction ({rev_growth:.2f}% YoY)")
+    if inc_growth is not None and inc_growth < 0:
+        risk_points.append(f"earnings contraction ({inc_growth:.2f}% YoY)")
+    if de_val is not None and de_val > 1.2:
+        risk_points.append(f"elevated debt-to-equity leverage ({de_val:.2f}x)")
+    if not risk_points:
+        risk_points.append("macroeconomic sensitivity and broader industry cyclical headwinds")
+
+    verdict_summary = (
+        f"Overall, {name} presents a **{'High-Quality Compounder' if health_score['score'] >= 80 else 'Balanced Core Holding' if health_score['score'] >= 65 else 'Moderate Value / Turnaround Candidate' if health_score['score'] >= 50 else 'High-Risk / Speculative Profile'}** profile. "
+        f"Primary investment drivers include {', '.join(bull_points)}. "
+        f"Key monitorables for fundamental investors include {', '.join(risk_points)}."
+    )
+
+    p7 = (
+        f"**7. Strategic Investment Outlook & Executive Conclusion**:\n"
+        f"{verdict_summary}"
+    )
+    sections.append(p7)
+
+    return "\n\n".join(sections)
+
 def run_fundamental_agent_analysis(ticker: str, market: str, company_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Master entrypoint for Agent 3: Fundamental Analysis Agent.
@@ -702,23 +942,22 @@ def run_fundamental_agent_analysis(ticker: str, market: str, company_name: Optio
     # 8. Fundamental Health Score
     health_score = calculate_health_score(profitability, rev_earnings, debt_stability, valuation)
 
-    # Executive Summary Narrative
-    narrative = (
-        f"### Fundamental Analysis Dossier: {name} ({clean_ticker})\n\n"
-        f"**1. Overview & Health Verdict**:\n"
-        f"{name} operates in the {sector} sector ({industry}) with an overall fundamental health score of "
-        f"**{health_score['score']}/100 ({health_score['grade']} - {health_score['verdict']})**. "
-        f"The company demonstrates a {health_score['risk_level'].lower()} financial risk profile.\n\n"
-        f"**2. Growth & Profitability**:\n"
-        f"{rev_earnings['explanation']} "
-        f"{profitability['evaluation']}\n\n"
-        f"**3. Balance Sheet & Solvency**:\n"
-        f"Classified as **{debt_stability['solvency_grade']}** with a Debt-to-Equity ratio of "
-        f"{debt_stability['debt_to_equity'] or 'N/A'}x and Current Ratio of {debt_stability['current_ratio'] or 'N/A'}x. "
-        f"{' '.join(debt_stability['financial_risks'])}\n\n"
-        f"**4. Valuation & Peer Stance**:\n"
-        f"{valuation['explanation']} "
-        f"Relative to peers, {name} demonstrates key advantages: {' '.join(peer_benchmark['relative_strengths'])}"
+    # Executive Summary Narrative (Institutional Grade Synthesis)
+    narrative = generate_executive_synthesis(
+        name=name,
+        ticker=clean_ticker,
+        market=market_upper,
+        sector=sector,
+        industry=industry,
+        currency=currency,
+        info=info,
+        hist_years=hist_years,
+        rev_earnings=rev_earnings,
+        profitability=profitability,
+        debt_stability=debt_stability,
+        valuation=valuation,
+        peer_benchmark=peer_benchmark,
+        health_score=health_score
     )
 
     retrieval_utc = datetime.now(timezone.utc)
