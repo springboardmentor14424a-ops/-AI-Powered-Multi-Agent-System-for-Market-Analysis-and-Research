@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Secrets
+.env
+
+# Editor & Frontend
+.vscode/
+node_modules/
+
