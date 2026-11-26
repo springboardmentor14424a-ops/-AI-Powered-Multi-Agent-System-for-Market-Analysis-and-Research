@@ -22,15 +22,25 @@ def search_stocks(query: str) -> list[dict]:
 
 def get_stock_history(symbol: str, period: str = "1y", interval: str = "1d") -> list[dict]:
     try:
+        from app.services.indicators import compute_all_technical_indicators
         ticker = yf.Ticker(symbol)
         hist = ticker.history(period=period, interval=interval)
+        if hist.empty:
+            return []
+        
+        enriched = compute_all_technical_indicators(hist)
         records = []
-        for date, row in hist.iterrows():
-            open_val = row.get("Open")
-            high_val = row.get("High")
-            low_val = row.get("Low")
-            close_val = row.get("Close")
-            vol_val = row.get("Volume")
+        for date, row in enriched.iterrows():
+            open_val = row.get("Open") if "Open" in row else row.get("open")
+            high_val = row.get("High") if "High" in row else row.get("high")
+            low_val = row.get("Low") if "Low" in row else row.get("low")
+            close_val = row.get("Close") if "Close" in row else row.get("close")
+            vol_val = row.get("Volume") if "Volume" in row else row.get("volume")
+
+            def _flt(k):
+                v = row.get(k)
+                return round(float(v), 2) if pd.notna(v) else None
+
             records.append({
                 "date": str(date.date()) if hasattr(date, "date") else str(date),
                 "open": round(float(open_val), 2) if pd.notna(open_val) else None,
@@ -38,6 +48,16 @@ def get_stock_history(symbol: str, period: str = "1y", interval: str = "1d") -> 
                 "low": round(float(low_val), 2) if pd.notna(low_val) else None,
                 "close": round(float(close_val), 2) if pd.notna(close_val) else None,
                 "volume": int(vol_val) if pd.notna(vol_val) else None,
+                "sma_20": _flt("sma_20"),
+                "sma_50": _flt("sma_50"),
+                "sma_200": _flt("sma_200"),
+                "ema_12": _flt("ema_12"),
+                "ema_26": _flt("ema_26"),
+                "ema_50": _flt("ema_50"),
+                "rsi_14": _flt("rsi_14"),
+                "macd": _flt("macd"),
+                "macd_signal": _flt("macd_signal"),
+                "macd_hist": _flt("macd_hist"),
             })
         return records
     except Exception:

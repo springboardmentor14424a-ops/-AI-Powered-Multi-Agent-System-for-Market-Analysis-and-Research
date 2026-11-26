@@ -6,8 +6,12 @@ pyjwt
 pwdlib[argon2]
 yfinance
 pandas
+numpy
 alembic
 python-dotenv
 pydantic-settings
 pytest
 httpx
+finnhub-python
+plotly
+google-generativeai

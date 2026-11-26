@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import StockSearch from '../components/StockSearch';
 import StockChart from '../components/StockChart';
+import MultiAgentHub from '../components/MultiAgentHub';
 import api from '../api/axios';
 import {
   TrendingUp,
@@ -45,6 +46,10 @@ const DashboardPage = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [financialRatios, setFinancialRatios] = useState(null);
+  const [loadingRatios, setLoadingRatios] = useState(false);
+  const [multiAgentData, setMultiAgentData] = useState(null);
+  const [loadingMultiAgent, setLoadingMultiAgent] = useState(false);
 
   // Watchlist & Recent Searches
   const [watchlist, setWatchlist] = useState([]);
@@ -123,27 +128,37 @@ const DashboardPage = () => {
     setLoadingQuote(true);
     setLoadingHistory(true);
     setLoadingAnalysis(true);
+    setLoadingRatios(true);
+    setLoadingMultiAgent(true);
 
     api.post('/user/recent-searches', { symbol }).then(() => loadRecentSearches()).catch(() => {});
 
     try {
-      const [quoteRes, histRes, analysisRes] = await Promise.allSettled([
+      const [quoteRes, histRes, analysisRes, ratiosRes, agentsRes] = await Promise.allSettled([
         api.get(`/stocks/${symbol}/quote`),
         api.get(`/stocks/${symbol}/history?period=${p}&interval=1d`),
         api.get(`/stocks/${symbol}/analysis`),
+        api.get(`/stocks/${symbol}/ratios`),
+        api.get(`/agents/${symbol}/all`),
       ]);
       setQuote(quoteRes.status === 'fulfilled' ? quoteRes.value.data : null);
       setHistory(histRes.status === 'fulfilled' ? histRes.value.data : []);
       setAiAnalysis(analysisRes.status === 'fulfilled' ? analysisRes.value.data : null);
+      setFinancialRatios(ratiosRes.status === 'fulfilled' ? ratiosRes.value.data : null);
+      setMultiAgentData(agentsRes.status === 'fulfilled' ? agentsRes.value.data : null);
     } catch (err) {
       console.error('Failed to fetch stock data:', err);
       setQuote(null);
       setHistory([]);
       setAiAnalysis(null);
+      setFinancialRatios(null);
+      setMultiAgentData(null);
     } finally {
       setLoadingQuote(false);
       setLoadingHistory(false);
       setLoadingAnalysis(false);
+      setLoadingRatios(false);
+      setLoadingMultiAgent(false);
     }
   };
 
@@ -430,6 +445,55 @@ const DashboardPage = () => {
                                 </p>
                               </div>
                             </div>
+
+                            {/* Live Financial Ratios Grid */}
+                            <div className="mt-6 pt-6 border-t border-white/10">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <BarChart3 className="w-4 h-4 text-cyan-400" />
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                                    Key Financial Ratios (Real Data)
+                                  </span>
+                                </div>
+                                <span className="text-[11px] text-slate-400">Validated Python Calculation Engine</span>
+                              </div>
+
+                              {loadingRatios ? (
+                                <div className="flex items-center justify-center py-6">
+                                  <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                                </div>
+                              ) : financialRatios?.financial_ratios ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                                  {[
+                                    { key: 'pe_ratio', label: 'P/E Ratio', tip: 'Price to Earnings' },
+                                    { key: 'eps', label: 'EPS', tip: 'Earnings Per Share' },
+                                    { key: 'roe', label: 'ROE', tip: 'Return on Equity' },
+                                    { key: 'debt_to_equity', label: 'Debt / Equity', tip: 'D/E Ratio' },
+                                    { key: 'current_ratio', label: 'Current Ratio', tip: 'Liquidity Ratio' },
+                                    { key: 'net_profit_margin', label: 'Profit Margin', tip: 'Net Margin' },
+                                    { key: 'roa', label: 'ROA', tip: 'Return on Assets' },
+                                  ].map((m) => {
+                                    const metric = financialRatios.financial_ratios[m.key];
+                                    return (
+                                      <div
+                                        key={m.key}
+                                        className="p-3 bg-white/[0.03] border border-white/5 rounded-xl hover:border-cyan-500/20 transition-all"
+                                      >
+                                        <div className="text-[11px] font-medium text-slate-400 truncate mb-1">
+                                          {m.label}
+                                        </div>
+                                        <div className="text-sm font-bold text-white">
+                                          {metric?.display || 'N/A'}
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                                          {m.tip}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
                           </>
                         ) : (
                           <p className="text-slate-400 text-center py-4">Failed to load quote data</p>
@@ -459,96 +523,102 @@ const DashboardPage = () => {
                     </motion.div>
                   )}
 
-                  {/* AI Multi-Agent Intelligence Section */}
+                  {/* AI Multi-Agent Intelligence Section (Milestone 2 Autonomous Agents) */}
                   {selectedSymbol && (
+                    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mb-6">
+                      <MultiAgentHub
+                        data={multiAgentData}
+                        loading={loadingMultiAgent}
+                        symbol={selectedSymbol}
+                        onRefresh={() => fetchStockData(selectedSymbol)}
+                      />
+                    </motion.div>
+                  )}
+
+                  {/* Machine Learning Core Inference (Milestone 1 Models) */}
+                  {selectedSymbol && aiAnalysis && (
                     <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-6">
-                      <div className="glass-card rounded-2xl p-6 border border-cyan-500/20">
-                        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-white/10">
+                      <div className="glass-card rounded-2xl p-6 border border-white/10">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-white/10">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                              <h3 className="text-lg font-bold text-white">AI Agent Intelligence (Model Predictions)</h3>
+                              <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                              <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                                ML Quantitative Predictors (Trained on S&P 500)
+                              </h4>
                             </div>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              Trained on 850k+ price bars and 1,780+ fundamental filings across S&P 500 companies
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              Ensemble Random Forest & Gradient Boosted Classifiers
                             </p>
                           </div>
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                            v1.0.0 S&P 500 ML Models
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/5 text-slate-300 border border-white/10">
+                            v1.0.0 Scikit-Learn Engines
                           </span>
                         </div>
 
-                        {loadingAnalysis ? (
-                          <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-                          </div>
-                        ) : aiAnalysis ? (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Fundamental Agent Card */}
-                            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fundamental Agent</span>
-                                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                                  {aiAnalysis.fundamental_analysis?.financial_health_rating}
-                                </span>
-                              </div>
-                              <div className="mt-2 space-y-1.5">
-                                <div className="text-2xl font-bold text-white">
-                                  ${aiAnalysis.fundamental_analysis?.predicted_forward_eps}
-                                </div>
-                                <p className="text-xs text-slate-400">Predicted Forward EPS</p>
-                                <div className="text-xs text-slate-500 pt-2 border-t border-white/5">
-                                  Model Confidence: <span className="text-slate-300">{(aiAnalysis.fundamental_analysis?.confidence * 100).toFixed(0)}%</span>
-                                </div>
-                              </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Fundamental Agent Card */}
+                          <div className="p-4 bg-white/[0.03] border border-white/5 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Forward EPS Model</span>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                {aiAnalysis.fundamental_analysis?.financial_health_rating}
+                              </span>
                             </div>
-
-                            {/* Technical Agent Card */}
-                            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Technical Agent</span>
-                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                  aiAnalysis.technical_analysis?.direction_up
-                                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                                    : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                                }`}>
-                                  {aiAnalysis.technical_analysis?.signal}
-                                </span>
+                            <div className="mt-2 space-y-1.5">
+                              <div className="text-2xl font-bold text-white">
+                                ${aiAnalysis.fundamental_analysis?.predicted_forward_eps}
                               </div>
-                              <div className="mt-2 space-y-1.5">
-                                <div className="text-2xl font-bold text-white">
-                                  {aiAnalysis.technical_analysis?.expected_forward_5d_return >= 0 ? '+' : ''}
-                                  {aiAnalysis.technical_analysis?.expected_forward_5d_return}%
-                                </div>
-                                <p className="text-xs text-slate-400">Expected 5-Day Trajectory</p>
-                                <div className="text-xs text-slate-500 pt-2 border-t border-white/5">
-                                  Status: <span className="text-slate-300">{aiAnalysis.technical_analysis?.technical_indicators?.trend_status}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Risk Agent Card */}
-                            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Risk Agent</span>
-                                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-violet-500/15 text-violet-300 border border-violet-500/30">
-                                  {aiAnalysis.risk_assessment?.risk_level}
-                                </span>
-                              </div>
-                              <div className="mt-2 space-y-1.5">
-                                <div className="text-2xl font-bold text-white">
-                                  {aiAnalysis.risk_assessment?.annualized_volatility_pct}%
-                                </div>
-                                <p className="text-xs text-slate-400">Annualized Volatility</p>
-                                <div className="text-xs text-slate-500 pt-2 border-t border-white/5">
-                                  95% Daily VaR: <span className="text-rose-400">{aiAnalysis.risk_assessment?.daily_value_at_risk_95_pct}%</span>
-                                </div>
+                              <p className="text-xs text-slate-400">Predicted Forward EPS</p>
+                              <div className="text-xs text-slate-500 pt-2 border-t border-white/5">
+                                Model Confidence: <span className="text-slate-300">{(aiAnalysis.fundamental_analysis?.confidence * 100).toFixed(0)}%</span>
                               </div>
                             </div>
                           </div>
-                        ) : (
-                          <p className="text-slate-500 text-sm">Model inference not available for this ticker</p>
-                        )}
+
+                          {/* Technical Agent Card */}
+                          <div className="p-4 bg-white/[0.03] border border-white/5 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Direction Classifier</span>
+                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                aiAnalysis.technical_analysis?.direction_up
+                                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                              }`}>
+                                {aiAnalysis.technical_analysis?.signal}
+                              </span>
+                            </div>
+                            <div className="mt-2 space-y-1.5">
+                              <div className="text-2xl font-bold text-white">
+                                {aiAnalysis.technical_analysis?.expected_forward_5d_return >= 0 ? '+' : ''}
+                                {aiAnalysis.technical_analysis?.expected_forward_5d_return}%
+                              </div>
+                              <p className="text-xs text-slate-400">Expected 5-Day Trajectory</p>
+                              <div className="text-xs text-slate-500 pt-2 border-t border-white/5">
+                                Status: <span className="text-slate-300">{aiAnalysis.technical_analysis?.technical_indicators?.trend_status}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Risk Agent Card */}
+                          <div className="p-4 bg-white/[0.03] border border-white/10 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">VaR Model</span>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-violet-500/15 text-violet-300 border border-violet-500/30">
+                                {aiAnalysis.risk_assessment?.risk_level}
+                              </span>
+                            </div>
+                            <div className="mt-2 space-y-1.5">
+                              <div className="text-2xl font-bold text-white">
+                                {aiAnalysis.risk_assessment?.annualized_volatility_pct}%
+                              </div>
+                              <p className="text-xs text-slate-400">Annualized Volatility</p>
+                              <div className="text-xs text-slate-500 pt-2 border-t border-white/5">
+                                95% Daily VaR: <span className="text-rose-400">{aiAnalysis.risk_assessment?.daily_value_at_risk_95_pct}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -731,12 +801,40 @@ const DashboardPage = () => {
           {/* TAB 3: AI AGENTS CONSOLE & ARCHITECTURE */}
           {activeTab === 'agents' && (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold text-white">Multi-Agent AI Architecture</h1>
-                <p className="text-slate-400 text-sm mt-0.5">
-                  Detailed inspection of specialized agents and trained models deployed for market research.
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Multi-Agent AI Cockpit</h1>
+                  <p className="text-slate-400 text-sm mt-0.5">
+                    Deploy Fundamental, Technical, News & Sentiment, and Risk agents on any stock in real-time.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">Quick Analyze:</span>
+                  {['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL'].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => fetchStockData(s)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+                        selectedSymbol === s
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
+                          : 'bg-white/[0.04] text-slate-400 border-white/5 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* If a stock is active, render the full interactive MultiAgentHub right here */}
+              {selectedSymbol && (
+                <MultiAgentHub
+                  data={multiAgentData}
+                  loading={loadingMultiAgent}
+                  symbol={selectedSymbol}
+                  onRefresh={() => fetchStockData(selectedSymbol)}
+                />
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[

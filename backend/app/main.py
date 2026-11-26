@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, stocks, user_stocks
+from app.routers import auth, stocks, user_stocks, agents
 
 app = FastAPI(title="StockMind AI", version="1.0.0")
 
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(stocks.router)
 app.include_router(user_stocks.router)
+app.include_router(agents.router)
 
 
 @app.get("/")

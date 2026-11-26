@@ -1,5 +1,10 @@
 from fastapi import APIRouter, Query
 from app.services.stock_service import search_stocks, get_stock_history, get_stock_quote
+from app.services.ratio_service import (
+    fetch_and_calculate_real_financial_ratios,
+    compute_all_financial_ratios,
+)
+from app.schemas.ratios import RatioInputForm
 from app.services.ml_service import ml_service
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
@@ -21,6 +26,41 @@ def history(symbol: str, period: str = "1y", interval: str = "1d"):
 def quote(symbol: str):
     data = get_stock_quote(symbol)
     return data
+
+
+@router.get("/{symbol}/ratios")
+def get_financial_ratios(symbol: str):
+    """
+    Retrieves real financial statement data and calculates:
+    - P/E (Price-to-Earnings)
+    - EPS (Earnings Per Share)
+    - ROE (Return on Equity)
+    - Debt-to-Equity (D/E)
+    - Current Ratio
+    - Net Profit Margin
+    - ROA (Return on Assets)
+    """
+    return fetch_and_calculate_real_financial_ratios(symbol)
+
+
+@router.post("/calculate-ratios")
+def calculate_custom_ratios(body: RatioInputForm):
+    """
+    Calculates all 7 financial ratios from explicit financial metrics
+    with complete input validation and edge-case handling.
+    """
+    return compute_all_financial_ratios(
+        price=body.price,
+        net_income=body.net_income,
+        shares_outstanding=body.shares_outstanding,
+        total_shareholder_equity=body.total_shareholder_equity,
+        total_debt=body.total_debt,
+        current_assets=body.current_assets,
+        current_liabilities=body.current_liabilities,
+        total_revenue=body.total_revenue,
+        total_assets=body.total_assets,
+        eps_override=body.eps,
+    )
 
 
 @router.get("/{symbol}/analysis")
