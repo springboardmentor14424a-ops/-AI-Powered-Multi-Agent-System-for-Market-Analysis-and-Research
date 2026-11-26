@@ -7,41 +7,12 @@ class FundamentalAgent:
     
     @staticmethod
     def analyze(ticker: str, market: str, current_price: float) -> Dict[str, Any]:
-        # Calibrate valuation based on ticker
-        pe_multiples = {
-            "RELIANCE": 26.4, "TCS": 30.2, "INFY": 27.8, "HDFCBANK": 19.5,
-            "ICICIBANK": 18.2, "TATAMOTORS": 11.4, "SBIN": 10.8, "BHARTIARTL": 38.5,
-            "ITC": 26.8, "WIPRO": 22.4, "AAPL": 34.2, "MSFT": 35.8, "NVDA": 54.0
-        }
-        pe = pe_multiples.get(ticker, 24.5)
-        eps = round(current_price / pe, 2)
-        pb = round(pe * 0.18, 2)
-        roe = round(14.5 + (pe % 10), 1)
-        debt_to_equity = round(0.12 if "TECH" in ticker or ticker in ["TCS", "INFY", "WIPRO", "MSFT", "AAPL"] else 0.65, 2)
-        dcf_fair_value = round(current_price * (1.18 if pe < 28 else 1.06), 2)
-        margin_of_safety = round(((dcf_fair_value - current_price) / current_price) * 100, 1)
-
-        health = "Exceptional" if margin_of_safety > 12 and debt_to_equity < 0.5 else "Stable & Solid"
-        verdict = "Undervalued" if margin_of_safety > 8 else ("Fairly Valued" if margin_of_safety > -5 else "Stretched")
-
-        return {
-            "agent_name": "Fundamental Agent",
-            "health": health,
-            "valuation_status": verdict,
-            "pe_ratio": f"{pe}x",
-            "pb_ratio": f"{pb}x",
-            "eps": f"{eps}",
-            "roe": f"{roe}%",
-            "debt_to_equity": f"{debt_to_equity}",
-            "dcf_fair_value": f"{dcf_fair_value}",
-            "margin_of_safety": f"{'+' if margin_of_safety >= 0 else ''}{margin_of_safety}%",
-            "revenue_growth": "+14.8% YoY",
-            "operating_cash_flow": "Healthy & Positive",
-            "summary": (
-                f"Financial audit indicates {health.lower()} balance sheet fundamentals. "
-                f"Trading at {pe}x P/E with estimated DCF fair value of {dcf_fair_value} ({margin_of_safety}% margin of safety)."
-            )
-        }
+        from app.services.fundamental_analyzer import FundamentalAnalysisEngine
+        return FundamentalAnalysisEngine.analyze(
+            ticker=ticker,
+            market=market,
+            current_price=current_price
+        )
 
 class TechnicalAgent:
     """Evaluates momentum indicators, EMA trend clusters, and breakout geometry."""

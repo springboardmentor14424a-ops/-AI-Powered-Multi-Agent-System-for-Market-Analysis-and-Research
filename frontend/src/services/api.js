@@ -124,6 +124,8 @@ export const marketApi = {
     request(`/market/profile/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market || 'NSE')}`),
   getFinancials: (ticker, market, periodType = 'annual') =>
     request(`/market/financials/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market || 'NSE')}&period_type=${encodeURIComponent(periodType)}`),
+  getFundamentalAnalysis: (ticker, market, periodType = 'annual') =>
+    request(`/market/fundamental-analysis/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market || 'NSE')}&period_type=${encodeURIComponent(periodType)}`),
   validateData: (ticker, market, records) =>
     request('/market/validate', {
       method: 'POST',

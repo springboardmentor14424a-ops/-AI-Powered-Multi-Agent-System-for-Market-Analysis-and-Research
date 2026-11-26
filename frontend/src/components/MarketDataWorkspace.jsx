@@ -90,11 +90,12 @@ export default function MarketDataWorkspace({ onLaunchTask }) {
   const [ohlcvData, setOhlcvData] = useState(null);
   const [companyProfile, setCompanyProfile] = useState(null);
   const [financials, setFinancials] = useState(null);
+  const [fundamentalAnalysis, setFundamentalAnalysis] = useState(null);
   const [financialPeriod, setFinancialPeriod] = useState('annual'); // annual | quarterly
   const [financialTab, setFinancialTab] = useState('income'); // income | balance | cashflow | ratios
   const [chartPeriod, setChartPeriod] = useState('6 Months');
   const [isLoading, setIsLoading] = useState(true);
-  const [activeSubTab, setActiveSubTab] = useState('chart'); // chart | profile | financials | validation
+  const [activeSubTab, setActiveSubTab] = useState('chart'); // chart | fundamental | profile | financials | validation
 
   // Modals & Messages
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
@@ -123,6 +124,10 @@ export default function MarketDataWorkspace({ onLaunchTask }) {
       // 3. Load Financial Statements
       const fin = await marketApi.getFinancials(ticker, market, financialPeriod);
       setFinancials(fin);
+
+      // 4. Load Fundamental Analysis Agent Report
+      const fund = await marketApi.getFundamentalAnalysis(ticker, market, financialPeriod);
+      setFundamentalAnalysis(fund);
     } catch (err) {
       setErrorMsg(err.message || 'Error retrieving market data.');
     } finally {
@@ -690,6 +695,23 @@ export default function MarketDataWorkspace({ onLaunchTask }) {
           </button>
 
           <button
+            onClick={() => setActiveSubTab('fundamental')}
+            className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
+              activeSubTab === 'fundamental'
+                ? 'bg-white text-slate-900 shadow-md border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Fundamental Agent</span>
+            {fundamentalAnalysis?.valuation_status && (
+              <span className="ml-1 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800">
+                {fundamentalAnalysis.valuation_status}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveSubTab('profile')}
             className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
               activeSubTab === 'profile'
@@ -784,6 +806,252 @@ export default function MarketDataWorkspace({ onLaunchTask }) {
               </div>
 
               {renderInteractiveChart()}
+            </div>
+          )}
+
+          {/* TAB 1B: MODULE 3 - FUNDAMENTAL ANALYSIS AGENT */}
+          {activeSubTab === 'fundamental' && fundamentalAnalysis && (
+            <div className="space-y-6">
+              {/* Executive Summary & Valuation Banner */}
+              <div className="glass-panel rounded-3xl p-6 bg-gradient-to-r from-indigo-50/90 via-white to-blue-50/90 border border-indigo-200 shadow-md">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-indigo-100">
+                  <div>
+                    <div className="flex items-center space-x-2 text-xs font-mono font-bold text-indigo-700 mb-1">
+                      <TrendingUp className="w-4 h-4 text-indigo-600" />
+                      <span>Autonomous Fundamental Analysis Agent</span>
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-900">
+                      {fundamentalAnalysis.company_name} ({fundamentalAnalysis.ticker}) — Financial Health & Valuation
+                    </h3>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-white border border-indigo-200 text-indigo-900">
+                      Health: {fundamentalAnalysis.health}
+                    </span>
+                    <span className={`px-3 py-1.5 rounded-xl text-xs font-mono font-extrabold ${
+                      fundamentalAnalysis.valuation_status === 'Undervalued'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : fundamentalAnalysis.valuation_status === 'Fairly Valued'
+                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}>
+                      {fundamentalAnalysis.valuation_status} ({fundamentalAnalysis.margin_of_safety})
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed pt-3">
+                  {fundamentalAnalysis.summary}
+                </p>
+              </div>
+
+              {/* Key Valuation Ratios Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">P/E Ratio</span>
+                  <p className="text-lg font-extrabold text-slate-900 font-mono mt-1">{fundamentalAnalysis.pe_ratio}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">P/B Ratio</span>
+                  <p className="text-lg font-extrabold text-slate-900 font-mono mt-1">{fundamentalAnalysis.pb_ratio}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Return on Equity (ROE)</span>
+                  <p className="text-lg font-extrabold text-emerald-700 font-mono mt-1">{fundamentalAnalysis.roe}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Return on Assets (ROA)</span>
+                  <p className="text-lg font-extrabold text-slate-900 font-mono mt-1">{fundamentalAnalysis.valuation_ratios?.roa || 'N/A'}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Debt / Equity</span>
+                  <p className="text-lg font-extrabold text-slate-900 font-mono mt-1">{fundamentalAnalysis.debt_to_equity}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">DCF Fair Value</span>
+                  <p className="text-lg font-extrabold text-indigo-700 font-mono mt-1">
+                    {fundamentalAnalysis.currency === 'INR' ? '₹' : '$'}{fundamentalAnalysis.dcf_fair_value}
+                  </p>
+                </div>
+              </div>
+
+              {/* 3-Column Deep Analysis Cards: Revenue & Earnings | Profitability | Debt & Stability */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-mono font-extrabold uppercase text-slate-800">1. Revenue & Earnings</h4>
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700">
+                      {fundamentalAnalysis.revenue_and_earnings?.trend}
+                    </span>
+                  </div>
+                  <div className="text-xs font-mono text-slate-600 space-y-1 pt-1">
+                    <p>YoY Revenue Growth: <strong className="text-slate-900">{fundamentalAnalysis.revenue_and_earnings?.latest_yoy_revenue_growth_display}</strong></p>
+                    <p>3Y Revenue CAGR: <strong className="text-slate-900">{fundamentalAnalysis.revenue_and_earnings?.revenue_cagr_pct ?? 'N/A'}%</strong></p>
+                    <p>YoY Earnings Growth: <strong className="text-slate-900">{fundamentalAnalysis.revenue_and_earnings?.latest_yoy_earnings_growth_pct ?? 'N/A'}%</strong></p>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed pt-2 border-t border-slate-100">
+                    {fundamentalAnalysis.revenue_and_earnings?.narrative}
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-mono font-extrabold uppercase text-slate-800">2. Profitability</h4>
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700">
+                      {fundamentalAnalysis.profitability?.margin_trend}
+                    </span>
+                  </div>
+                  <div className="text-xs font-mono text-slate-600 space-y-1 pt-1">
+                    <p>Gross Margin: <strong className="text-slate-900">{fundamentalAnalysis.profitability?.gross_margin_pct ?? 'N/A'}%</strong></p>
+                    <p>Operating Margin: <strong className="text-slate-900">{fundamentalAnalysis.profitability?.operating_margin_pct ?? 'N/A'}%</strong></p>
+                    <p>Net Margin: <strong className="text-slate-900">{fundamentalAnalysis.profitability?.net_margin_display}</strong></p>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed pt-2 border-t border-slate-100">
+                    {fundamentalAnalysis.profitability?.narrative}
+                  </p>
+                </div>
+
+                <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-mono font-extrabold uppercase text-slate-800">3. Debt & Stability</h4>
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700">
+                      {fundamentalAnalysis.debt_and_stability?.stability_rating}
+                    </span>
+                  </div>
+                  <div className="text-xs font-mono text-slate-600 space-y-1 pt-1">
+                    <p>Debt-to-Equity: <strong className="text-slate-900">{fundamentalAnalysis.debt_and_stability?.debt_to_equity}</strong></p>
+                    <p>Current Ratio: <strong className="text-slate-900">{fundamentalAnalysis.debt_and_stability?.current_ratio ?? 'N/A'}x</strong></p>
+                    <p>Position: <strong className="text-slate-900">{fundamentalAnalysis.debt_and_stability?.net_position}</strong></p>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed pt-2 border-t border-slate-100">
+                    {fundamentalAnalysis.debt_and_stability?.narrative}
+                  </p>
+                </div>
+              </div>
+
+              {/* Historical Financial Performance Comparison */}
+              {fundamentalAnalysis.historical_comparison?.length > 0 && (
+                <div className="glass-panel rounded-3xl p-6 bg-white border border-slate-200 shadow-sm">
+                  <h4 className="text-xs font-mono font-extrabold uppercase text-slate-800 mb-3">
+                    4. Historical Financial Performance Comparison ({fundamentalAnalysis.currency})
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs font-mono">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-400 text-left">
+                          <th className="py-2 font-bold">Period</th>
+                          <th className="py-2 text-right font-bold">Revenue</th>
+                          <th className="py-2 text-right font-bold">YoY Growth</th>
+                          <th className="py-2 text-right font-bold">Net Income</th>
+                          <th className="py-2 text-right font-bold">Net Margin</th>
+                          <th className="py-2 text-right font-bold">EPS</th>
+                          <th className="py-2 text-right font-bold">ROE</th>
+                          <th className="py-2 text-right font-bold">Debt/Eq</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {fundamentalAnalysis.historical_comparison.map((row, i) => (
+                          <tr key={i} className="hover:bg-slate-50">
+                            <td className="py-2 font-bold text-slate-800">{row.period}</td>
+                            <td className="py-2 text-right text-slate-800">{row.revenue?.toLocaleString() ?? 'N/A'}</td>
+                            <td className="py-2 text-right text-emerald-600 font-bold">
+                              {row.yoy_revenue_growth_pct !== null ? `${row.yoy_revenue_growth_pct > 0 ? '+' : ''}${row.yoy_revenue_growth_pct}%` : '—'}
+                            </td>
+                            <td className="py-2 text-right text-slate-800">{row.net_income?.toLocaleString() ?? 'N/A'}</td>
+                            <td className="py-2 text-right text-slate-700">{row.net_margin_pct ?? 'N/A'}%</td>
+                            <td className="py-2 text-right text-slate-700">{row.eps ?? 'N/A'}</td>
+                            <td className="py-2 text-right text-indigo-700 font-bold">{row.roe_pct ?? 'N/A'}%</td>
+                            <td className="py-2 text-right text-slate-700">{row.debt_to_equity ?? 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Peer Comparison */}
+              {fundamentalAnalysis.peer_comparison?.peers?.length > 0 && (
+                <div className="glass-panel rounded-3xl p-6 bg-white border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h4 className="text-xs font-mono font-extrabold uppercase text-slate-800">
+                      5. Sector & Market Peer Comparison
+                    </h4>
+                    <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-xl">
+                      {fundamentalAnalysis.peer_comparison.relative_valuation_verdict}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs font-mono">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-400 text-left">
+                          <th className="py-2 font-bold">Company</th>
+                          <th className="py-2 font-bold">Market</th>
+                          <th className="py-2 text-right font-bold">Market Cap</th>
+                          <th className="py-2 text-right font-bold">P/E</th>
+                          <th className="py-2 text-right font-bold">ROE</th>
+                          <th className="py-2 text-right font-bold">Net Margin</th>
+                          <th className="py-2 text-right font-bold">Debt/Eq</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        <tr className="bg-blue-50/60 font-bold">
+                          <td className="py-2 text-blue-900">{fundamentalAnalysis.ticker} (Target)</td>
+                          <td className="py-2 text-blue-800">{fundamentalAnalysis.market}</td>
+                          <td className="py-2 text-right text-blue-900">{companyProfile?.market_cap || '—'}</td>
+                          <td className="py-2 text-right text-blue-900">{fundamentalAnalysis.pe_ratio}</td>
+                          <td className="py-2 text-right text-blue-900">{fundamentalAnalysis.roe}</td>
+                          <td className="py-2 text-right text-blue-900">{fundamentalAnalysis.profitability?.net_margin_display}</td>
+                          <td className="py-2 text-right text-blue-900">{fundamentalAnalysis.debt_to_equity}</td>
+                        </tr>
+                        {fundamentalAnalysis.peer_comparison.peers.map((p, i) => (
+                          <tr key={i} className="hover:bg-slate-50">
+                            <td className="py-2 font-bold text-slate-800">{p.ticker} <span className="font-normal text-slate-500">({p.name})</span></td>
+                            <td className="py-2 text-slate-600">{p.market}</td>
+                            <td className="py-2 text-right text-slate-700">{p.market_cap || '—'}</td>
+                            <td className="py-2 text-right text-slate-800">{p.pe_ratio ? `${p.pe_ratio}x` : 'N/A'}</td>
+                            <td className="py-2 text-right text-slate-800">{p.roe_pct ? `${p.roe_pct}%` : 'N/A'}</td>
+                            <td className="py-2 text-right text-slate-800">{p.net_margin_pct ? `${p.net_margin_pct}%` : 'N/A'}</td>
+                            <td className="py-2 text-right text-slate-800">{p.debt_to_equity ?? 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Missing or Inconsistent Financial Information Audit */}
+              {fundamentalAnalysis.data_quality_audit && (
+                <div className="glass-panel rounded-3xl p-6 bg-white border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-mono font-extrabold uppercase text-slate-800">
+                      6. Financial Data Completeness & Consistency Audit
+                    </h4>
+                    <span className={`text-xs font-mono font-bold px-3 py-1 rounded-xl ${
+                      fundamentalAnalysis.data_quality_audit.is_consistent && !fundamentalAnalysis.data_quality_audit.has_missing_data
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-800 border border-amber-200'
+                    }`}>
+                      Completeness: {fundamentalAnalysis.data_quality_audit.completeness_score_pct}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">{fundamentalAnalysis.data_quality_audit.audit_summary}</p>
+                  {(fundamentalAnalysis.data_quality_audit.missing_fields?.length > 0 || fundamentalAnalysis.data_quality_audit.inconsistencies_found?.length > 0) && (
+                    <div className="space-y-1.5 pt-2 text-xs font-mono">
+                      {fundamentalAnalysis.data_quality_audit.missing_fields?.map((m, i) => (
+                        <div key={`miss-${i}`} className="p-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200">
+                          Missing: {m}
+                        </div>
+                      ))}
+                      {fundamentalAnalysis.data_quality_audit.inconsistencies_found?.map((inc, i) => (
+                        <div key={`inc-${i}`} className="p-2 rounded-xl bg-rose-50 text-rose-800 border border-rose-200">
+                          Inconsistency: {inc}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

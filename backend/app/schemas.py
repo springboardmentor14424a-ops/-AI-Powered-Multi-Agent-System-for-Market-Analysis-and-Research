@@ -238,3 +238,16 @@ class ProviderKeyUpdate(BaseModel):
     alpha_vantage_key: Optional[str] = None
     twelve_data_key: Optional[str] = None
 
+
+# =========================================================
+# MODULE 3: FUNDAMENTAL ANALYSIS AGENT SCHEMAS
+# =========================================================
+
+class FundamentalAuditRequest(BaseModel):
+    ticker: str
+    market: str = "NSE"
+    current_price: Optional[float] = 100.0
+    profile: dict = Field(default_factory=dict)
+    financials: dict = Field(default_factory=dict)
+
+

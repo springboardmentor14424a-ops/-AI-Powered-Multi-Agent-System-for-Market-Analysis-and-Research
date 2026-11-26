@@ -12,9 +12,11 @@ from app.schemas import (
     RawDataValidationResponse,
     MarketProviderStatus,
     ProviderKeyUpdate,
+    FundamentalAuditRequest,
 )
 from app.services.market_data_service import market_service
 from app.services.data_validator import MarketDataValidator
+from app.services.fundamental_analyzer import FundamentalAnalysisEngine
 
 logger = logging.getLogger("stock_research.market_router")
 
@@ -183,3 +185,47 @@ def get_live_quote(
         "data_source": ohlcv.get("data_source", "Institutional Market Feed"),
         "retrieval_timestamp": ohlcv.get("retrieval_timestamp", datetime.utcnow().isoformat() + "Z")
     }
+
+
+@router.get("/fundamental-analysis/{ticker}")
+def get_fundamental_analysis(
+    ticker: str,
+    market: str = Query("NSE", description="Exchange: NSE, BSE, NASDAQ, or NYSE"),
+    period_type: str = Query("annual", description="Period: annual or quarterly"),
+    db: Session = Depends(get_db)
+):
+    """
+    Module 3: Fundamental Analysis Agent.
+    Retrieves financial data and performs:
+    - Revenue & earnings growth analysis
+    - Profitability & margin analysis
+    - Debt & financial stability analysis
+    - Dynamic P/E, P/B, ROE, ROA, and DCF ratio calculations
+    - Historical performance comparison
+    - Sector peer comparison
+    - Missing / inconsistent financial information audit
+    """
+    clean_ticker = ticker.strip().upper()
+    clean_market = market.strip().upper()
+    return FundamentalAnalysisEngine.analyze(
+        ticker=clean_ticker,
+        market=clean_market,
+        period_type=period_type,
+        db=db
+    )
+
+
+@router.post("/fundamental-analysis/audit")
+def audit_custom_fundamental_data(payload: FundamentalAuditRequest):
+    """
+    Audit custom or incomplete financial statement payloads to verify ratio calculation
+    edge cases and identification of missing or inconsistent financial information.
+    """
+    return FundamentalAnalysisEngine.analyze(
+        ticker=payload.ticker,
+        market=payload.market,
+        current_price=payload.current_price,
+        custom_profile=payload.profile,
+        custom_financials=payload.financials
+    )
+

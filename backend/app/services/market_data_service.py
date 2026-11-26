@@ -960,28 +960,73 @@ class MarketDataService:
         }
 
     def _generate_financial_model(self, ticker: str, currency: str, period: str) -> Dict[str, Any]:
-        # Calibrated multi-year financial statements
+        # Calibrated multi-year financial statements tailored per company & sector
         is_inr = currency == "INR"
         mult = 1000 if is_inr else 1.0  # Scale for INR Crores vs USD Millions
 
         years = ["FY 2022", "FY 2023", "FY 2024", "FY 2025 (TTM)"] if period == "annual" else ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025"]
-        
+
+        matched = next((s for s in MASTER_EQUITY_CATALOG if s["ticker"] == ticker), None)
+        sector = (matched.get("sector", "") if matched else "").lower()
+        base_price = matched.get("base_price", 150.0) if matched else 150.0
+        target_pe = matched.get("pe_ratio", 24.5) if matched else 24.5
+
+        # Company-specific calibration profiles for realistic differentiation
+        import random
+        rng = random.Random(sum(ord(c) for c in ticker))
+
+        if "technology" in sector or "information technology" in sector or "communication" in sector:
+            cogs_ratio = round(0.32 + rng.random() * 0.14, 2)       # High gross margin (54-68%)
+            opex_ratio = round(0.18 + rng.random() * 0.06, 2)
+            debt_ratio = round(0.06 + rng.random() * 0.10, 2)       # Low debt
+            growth_rate = round(1.09 + rng.random() * 0.12, 3)      # 9% - 21% growth
+            if ticker == "NVDA":
+                growth_rate = 1.38
+                cogs_ratio = 0.26
+        elif "banking" in sector or "financial" in sector:
+            cogs_ratio = round(0.35 + rng.random() * 0.08, 2)
+            opex_ratio = round(0.24 + rng.random() * 0.05, 2)
+            debt_ratio = round(0.35 + rng.random() * 0.15, 2)
+            growth_rate = round(1.10 + rng.random() * 0.06, 3)
+        elif "automotive" in sector or "energy" in sector or "infrastructure" in sector:
+            cogs_ratio = round(0.64 + rng.random() * 0.08, 2)
+            opex_ratio = round(0.14 + rng.random() * 0.04, 2)
+            debt_ratio = round(0.24 + rng.random() * 0.14, 2)
+            growth_rate = round(1.07 + rng.random() * 0.08, 3)
+        else:
+            cogs_ratio = round(0.52 + rng.random() * 0.10, 2)
+            opex_ratio = round(0.18 + rng.random() * 0.05, 2)
+            debt_ratio = round(0.18 + rng.random() * 0.12, 2)
+            growth_rate = round(1.08 + rng.random() * 0.07, 3)
+
+        base_rev = (60000 + rng.randint(10000, 120000)) * mult if is_inr else (45000 + rng.randint(15000, 140000))
+        if ticker == "RELIANCE":
+            base_rev = 680000 * mult
+        elif ticker == "AAPL":
+            base_rev = 365000
+        elif ticker == "MSFT":
+            base_rev = 198000
+        elif ticker == "NVDA":
+            base_rev = 27000
+        elif ticker == "TCS":
+            base_rev = 191000 * mult
+
+        # Derive implied share count so latest EPS matches current_price / target_pe
+        expected_latest_eps = round(base_price / target_pe, 2) if target_pe > 0 else 10.0
+
         income_stmt = []
         balance_sheet = []
         cash_flow = []
 
-        base_rev = 85000 * mult if is_inr else 95000
-        growth_rate = 1.11
-
         for i, yr in enumerate(years):
             rev = round(base_rev * (growth_rate ** i), 2)
-            cogs = round(rev * 0.58, 2)
+            cogs = round(rev * cogs_ratio, 2)
             gross = round(rev - cogs, 2)
-            op_exp = round(rev * 0.19, 2)
+            op_exp = round(rev * opex_ratio, 2)
             ebitda = round(gross - op_exp, 2)
             deprec = round(rev * 0.04, 2)
             ebit = round(ebitda - deprec, 2)
-            tax = round(ebit * 0.22, 2)
+            tax = round(max(0.0, ebit * 0.22), 2)
             net_inc = round(ebit - tax, 2)
 
             income_stmt.append({
@@ -993,19 +1038,19 @@ class MarketDataService:
                 "ebitda": ebitda,
                 "operating_income": ebit,
                 "net_income": net_inc,
-                "profit_margin_pct": round((net_inc / rev) * 100, 2),
-                "eps": round(net_inc / (500 * mult), 2)
+                "profit_margin_pct": round((net_inc / rev) * 100, 2) if rev else 0.0,
+                "eps": 0.0  # Calibrated below
             })
 
-            # Balance sheet
-            cash = round(rev * 0.28, 2)
-            receivables = round(rev * 0.16, 2)
+            # Balance sheet (Total Assets = Total Liabilities + Stockholders Equity)
+            cash = round(rev * (0.32 if debt_ratio < 0.2 else 0.18), 2)
+            receivables = round(rev * 0.15, 2)
             cur_assets = round(cash + receivables + (rev * 0.10), 2)
-            ppe = round(rev * 0.65, 2)
+            ppe = round(rev * (0.45 if debt_ratio < 0.2 else 0.72), 2)
             total_assets = round(cur_assets + ppe, 2)
 
-            cur_liab = round(cur_assets * 0.45, 2)
-            lt_debt = round(total_assets * 0.22, 2)
+            cur_liab = round(cur_assets * (0.36 if debt_ratio < 0.2 else 0.52), 2)
+            lt_debt = round(total_assets * debt_ratio, 2)
             total_liab = round(cur_liab + lt_debt, 2)
             total_equity = round(total_assets - total_liab, 2)
 
@@ -1019,15 +1064,15 @@ class MarketDataService:
                 "total_liabilities": total_liab,
                 "stockholders_equity": total_equity,
                 "working_capital": round(cur_assets - cur_liab, 2),
-                "debt_to_equity": round(lt_debt / total_equity, 2)
+                "debt_to_equity": round(lt_debt / total_equity, 2) if total_equity > 0 else 0.0
             })
 
-            # Cash flow
-            op_cf = round(ebitda * 0.82, 2)
-            capex = round(rev * 0.08, 2)
+            # Cash flow (FCF = CFO - CapEx)
+            op_cf = round(ebitda * 0.84, 2)
+            capex = round(rev * (0.05 if debt_ratio < 0.2 else 0.09), 2)
             fcf = round(op_cf - capex, 2)
-            inv_cf = round(-capex - (rev * 0.03), 2)
-            fin_cf = round(-(rev * 0.06), 2)
+            inv_cf = round(-capex - (rev * 0.02), 2)
+            fin_cf = round(-(rev * 0.05), 2)
             net_change = round(op_cf + inv_cf + fin_cf, 2)
 
             cash_flow.append({
@@ -1039,6 +1084,12 @@ class MarketDataService:
                 "financing_cash_flow": fin_cf,
                 "net_change_in_cash": net_change
             })
+
+        # Calibrate EPS across all years using implied share count from latest year
+        latest_net = income_stmt[-1]["net_income"]
+        implied_shares = (latest_net / expected_latest_eps) if expected_latest_eps > 0 else 1000.0
+        for row in income_stmt:
+            row["eps"] = round(row["net_income"] / implied_shares, 2) if implied_shares > 0 else 0.0
 
         latest_is = income_stmt[-1]
         latest_bs = balance_sheet[-1]
