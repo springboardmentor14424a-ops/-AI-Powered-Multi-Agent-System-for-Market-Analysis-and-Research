@@ -42,3 +42,7 @@ dist/
 
 # Python test/cache
 .pytest_cache/
+
+backend/data/raw/
+backend/data/processed/*.csv
+.ipynb_checkpoints/

@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import "./Dashboard.css";
 import Watchlist from "../components/Watchlist";
-function Dashboard({ token, onLogout }) {
+function Dashboard({ token, onLogout ,  onCompanySelected  }) {
     const [user, setUser] = useState(null);
 
     // Profile loading and error states
@@ -170,6 +170,16 @@ function Dashboard({ token, onLogout }) {
             );
 
             setCompanyProfile(response.data);
+            const companyName =
+    response.data?.profile?.company_name ||
+    response.data?.ticker ||
+    selectedTicker;
+
+onCompanySelected?.({
+    name: companyName,
+    ticker: selectedTicker,
+    profile: response.data?.profile
+});
 
             // Load annual financial statements for the same company
             setFinancialPeriod("annual");
@@ -829,6 +839,48 @@ function Dashboard({ token, onLogout }) {
                                             </div>
 
                                         </div>
+
+{/* Valuation and Profitability Ratios */}
+<div className="valuation-ratios-section">
+    <h3>Valuation & Profitability Ratios</h3>
+
+    <div className="valuation-ratios-grid">
+
+        <div className="company-info-card">
+            <span>Price to Earnings (P/E)</span>
+            <h3>
+                {companyProfile.profile.pe_ratio != null
+                    ? Number(companyProfile.profile.pe_ratio).toFixed(2)
+                    : "N/A"}
+            </h3>
+        </div>
+
+        <div className="company-info-card">
+            <span>Price to Book (P/B)</span>
+            <h3>
+                {companyProfile.profile.pb_ratio != null
+                    ? Number(companyProfile.profile.pb_ratio).toFixed(2)
+                    : "N/A"}
+            </h3>
+        </div>
+
+        <div className="company-info-card">
+            <span>Return on Equity (ROE)</span>
+            <h3>
+                {companyProfile.profile.roe != null
+                    ? `${Number(companyProfile.profile.roe).toFixed(2)}%`
+                    : "N/A"}
+            </h3>
+        </div>
+
+    </div>
+
+    <p className="valuation-note">
+        P/E and P/B represent current market valuation ratios.
+        ROE represents the reported return on equity.
+    </p>
+</div>
+
 
                                         <div className="company-description">
                                             <h3>About the Company</h3>

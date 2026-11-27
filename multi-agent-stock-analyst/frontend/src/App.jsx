@@ -5,12 +5,12 @@ import Register from "./pages/register";
 import Login from "./pages/login";
 import Dashboard from "./pages/Dashboard";
 import GoogleLoginButton from "./components/GoogleLogin";
-
+import FinancialAssistant from "./components/FinancialAssistant";
 function App() {
     const [token, setToken] = useState(null);
     const [user, setUser] = useState(null);
     const [page, setPage] = useState("welcome");
-
+    const [dashboardCompany, setDashboardCompany] = useState(null);
     const handleLogin = (accessToken, userData) => {
         setToken(accessToken);
         setUser(userData);
@@ -24,13 +24,20 @@ function App() {
 
     // Show dashboard after successful login
     if (token && user) {
-        return (
+    return (
+        <>
             <Dashboard
                 token={token}
                 onLogout={handleLogout}
+                onCompanySelected={setDashboardCompany}
             />
-        );
-    }
+
+            <FinancialAssistant 
+             dashboardCompany={dashboardCompany}
+            />
+        </>
+    );
+}
 
     // Login and registration navigation
     if (page === "login") {

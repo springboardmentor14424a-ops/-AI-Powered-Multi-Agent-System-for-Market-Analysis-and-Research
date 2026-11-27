@@ -8,10 +8,12 @@ from app.auth import router
 from app.finance import router as finance_router
 from app.watchlist import router as watchlist_router
 
+from app.fundamental import router as fundamental_router
+
 app = FastAPI(
     title="Multi-Agent Stock Analyst API"
 )
-
+app.include_router(fundamental_router)
 # Create database tables
 Base.metadata.create_all(bind=engine)
 

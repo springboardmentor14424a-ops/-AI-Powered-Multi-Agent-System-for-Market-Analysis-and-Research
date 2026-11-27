@@ -243,6 +243,9 @@ def get_company_profile(
                 detail="Company profile not found"
             )
 
+       
+        roe = info.get("returnOnEquity")
+
         profile = {
             "company_name": info.get("longName"),
             "ticker": info.get("symbol"),
@@ -254,8 +257,13 @@ def get_company_profile(
             "market_cap": info.get("marketCap"),
             "employees": info.get("fullTimeEmployees"),
             "exchange": info.get("exchange"),
-            "currency": info.get("currency")
-        }
+            "currency": info.get("currency"),
+            "pe_ratio": info.get("trailingPE"),
+            "pb_ratio": info.get("priceToBook"),
+            "roe": roe * 100 if isinstance(roe, (int, float, np.number))
+            and np.isfinite(roe) else None
+            }
+
         profile = make_json_safe(profile)
 
         return {

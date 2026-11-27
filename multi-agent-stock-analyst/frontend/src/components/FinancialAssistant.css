@@ -1,0 +1,668 @@
+/* =========================================================
+   FinSight AI – refined purple theme
+   Same class names as before, so no JSX changes are needed.
+   ========================================================= */
+
+.finsight-widget {
+    --fs-primary: #4C2365;
+    --fs-primary-dark: #361949;
+    --fs-primary-light: #7a4a99;
+    --fs-accent: #a56bd0;
+    --fs-tint: #f6f0fa;
+    --fs-tint-strong: #ece0f4;
+    --fs-border: #e7dcef;
+    --fs-text: #2b1a38;
+    --fs-muted: #7b6a8a;
+    --fs-bg: #faf7fc;
+    --fs-success: #15803d;
+    --fs-danger: #c2410c;
+    --fs-radius: 18px;
+    --fs-shadow: 0 18px 50px rgba(54, 25, 73, 0.28);
+
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 9999;
+    font-family: inherit;
+}
+
+/* ---------- Launcher ---------- */
+
+.finsight-launcher {
+    width: 60px;
+    height: 60px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--fs-primary-light), var(--fs-primary) 60%, var(--fs-primary-dark));
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(76, 35, 101, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.finsight-launcher:hover {
+    transform: scale(1.08);
+    box-shadow: 0 10px 30px rgba(76, 35, 101, 0.55);
+}
+
+.finsight-launcher:focus-visible {
+    outline: 3px solid var(--fs-accent);
+    outline-offset: 3px;
+}
+
+.finsight-launcher.active {
+    font-size: 34px;
+}
+
+/* ---------- Window ---------- */
+
+.finsight-window {
+    position: relative;
+    width: 380px;
+    height: 570px;
+    max-height: calc(100vh - 115px);
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid var(--fs-border);
+    border-radius: var(--fs-radius);
+    overflow: hidden;
+    box-shadow: var(--fs-shadow);
+    animation: finsight-pop 0.22s ease-out;
+    transform-origin: bottom left;
+}
+
+@keyframes finsight-pop {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- Header ---------- */
+
+.finsight-header {
+    padding: 15px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, var(--fs-primary-light) 0%, var(--fs-primary) 55%, var(--fs-primary-dark) 100%);
+    color: white;
+}
+
+.finsight-brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.finsight-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+}
+
+.finsight-brand h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.finsight-brand span {
+    font-size: 11px;
+    opacity: 0.82;
+}
+
+.finsight-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.finsight-window-control,
+.finsight-close {
+    border: none;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+
+.finsight-window-control {
+    font-size: 21px;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+}
+
+.finsight-close {
+    font-size: 26px;
+    width: 30px;
+    height: 30px;
+    line-height: 1;
+}
+
+.finsight-window-control:hover,
+.finsight-close:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* ---------- Messages ---------- */
+
+.finsight-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    background:
+        radial-gradient(circle at top right, rgba(165, 107, 208, 0.07), transparent 45%),
+        var(--fs-bg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--fs-tint-strong) transparent;
+}
+
+.finsight-messages::-webkit-scrollbar { width: 6px; }
+.finsight-messages::-webkit-scrollbar-thumb {
+    background: var(--fs-tint-strong);
+    border-radius: 6px;
+}
+
+.finsight-message {
+    display: flex;
+    width: 100%;
+    animation: finsight-fade 0.2s ease-out;
+}
+
+@keyframes finsight-fade {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.finsight-message.user      { justify-content: flex-end; }
+.finsight-message.assistant { justify-content: flex-start; }
+
+.finsight-bubble {
+    max-width: 86%;
+    padding: 11px 14px;
+    border-radius: 15px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    white-space: pre-line; /* keeps the line breaks in debt / profitability replies */
+}
+
+.finsight-message.assistant .finsight-bubble {
+    background: white;
+    color: var(--fs-text);
+    border: 1px solid var(--fs-border);
+    border-top-left-radius: 4px;
+    box-shadow: 0 2px 8px rgba(76, 35, 101, 0.06);
+}
+
+.finsight-message.user .finsight-bubble {
+    background: linear-gradient(135deg, var(--fs-primary-light), var(--fs-primary));
+    color: white;
+    border-top-right-radius: 4px;
+    box-shadow: 0 3px 10px rgba(76, 35, 101, 0.25);
+}
+
+.finsight-loading {
+    color: var(--fs-muted) !important;
+    animation: finsight-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes finsight-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+}
+
+/* ---------- Quick-action chips ---------- */
+
+.finsight-suggestions {
+    display: flex;
+    gap: 7px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    background: #fff;
+    border-top: 1px solid var(--fs-border);
+    scrollbar-width: none;
+}
+
+.finsight-suggestions::-webkit-scrollbar { display: none; }
+
+.finsight-suggestions button {
+    flex-shrink: 0;
+    border: 1px solid var(--fs-border);
+    background: var(--fs-tint);
+    color: var(--fs-primary);
+    border-radius: 20px;
+    padding: 7px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.finsight-suggestions button:hover:not(:disabled) {
+    background: var(--fs-tint-strong);
+    border-color: var(--fs-accent);
+    transform: translateY(-1px);
+}
+
+.finsight-suggestions button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.finsight-dashboard-suggestion {
+    border: 1px solid var(--fs-primary-light) !important;
+    background: linear-gradient(135deg, var(--fs-tint-strong), var(--fs-tint)) !important;
+    color: var(--fs-primary) !important;
+    font-weight: 700 !important;
+}
+
+.finsight-dashboard-suggestion:hover:not(:disabled) {
+    background: var(--fs-tint-strong) !important;
+}
+
+.finsight-dashboard-suggestion:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---------- Input ---------- */
+
+.finsight-input-area {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px;
+    border-top: 1px solid var(--fs-border);
+    background: white;
+}
+
+.finsight-input-area input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--fs-border);
+    background: var(--fs-bg);
+    border-radius: 22px;
+    padding: 11px 16px;
+    outline: none;
+    font-size: 13px;
+    color: var(--fs-text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.finsight-input-area input::placeholder { color: #a898b5; }
+
+.finsight-input-area input:focus {
+    border-color: var(--fs-primary-light);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(122, 74, 153, 0.15);
+}
+
+.finsight-input-area button {
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--fs-primary-light), var(--fs-primary));
+    color: white;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.finsight-input-area button:hover:not(:disabled) {
+    transform: scale(1.07);
+    box-shadow: 0 4px 12px rgba(76, 35, 101, 0.35);
+}
+
+.finsight-input-area button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ---------- Autocomplete ---------- */
+
+.finsight-autocomplete {
+    position: absolute;
+    bottom: 118px;
+    left: 12px;
+    right: 12px;
+    z-index: 10;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid var(--fs-border);
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(54, 25, 73, 0.2);
+    padding: 7px;
+    animation: finsight-fade 0.15s ease-out;
+}
+
+.finsight-autocomplete-title {
+    padding: 7px 9px;
+    color: var(--fs-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.finsight-company-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--fs-text);
+    text-align: left;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.finsight-company-option:hover {
+    background: var(--fs-tint);
+}
+
+.finsight-search-icon {
+    color: var(--fs-primary-light);
+    font-size: 18px;
+}
+
+/* ---------- Analysis / report cards ---------- */
+
+.finsight-analysis {
+    width: 100%;
+    padding: 14px;
+    background: white;
+    border: 1px solid var(--fs-border);
+    border-radius: 14px;
+    color: var(--fs-text);
+    font-size: 12px;
+    line-height: 1.55;
+    box-shadow: 0 3px 12px rgba(76, 35, 101, 0.07);
+}
+
+.finsight-analysis > strong:first-child {
+    color: var(--fs-primary);
+    font-size: 14px;
+}
+
+.finsight-analysis h4 {
+    margin: 14px 0 7px;
+    padding-bottom: 5px;
+    font-size: 12px;
+    color: var(--fs-primary);
+    border-bottom: 2px solid var(--fs-tint-strong);
+}
+
+.finsight-analysis p { margin: 6px 0; }
+
+.finsight-analysis ul {
+    margin: 8px 0;
+    padding-left: 18px;
+    color: var(--fs-text);
+}
+
+.finsight-analysis li { margin-bottom: 4px; }
+
+.finsight-company-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--fs-tint-strong);
+}
+
+.finsight-company-heading strong {
+    font-size: 15px;
+    color: var(--fs-primary);
+}
+
+.finsight-company-heading span {
+    color: var(--fs-muted);
+}
+
+/* Prediction */
+
+.finsight-prediction {
+    padding: 12px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, var(--fs-tint), #fff);
+    border: 1px solid var(--fs-border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.finsight-prediction > span {
+    color: var(--fs-muted);
+    font-size: 11px;
+}
+
+.finsight-prediction > strong { font-size: 13px; }
+
+.finsight-prediction .no-decline,
+.no-decline { color: var(--fs-success); }
+
+.finsight-prediction .decline,
+.decline { color: var(--fs-danger); }
+
+.finsight-probabilities {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.finsight-probabilities div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.finsight-probabilities span {
+    color: var(--fs-muted);
+    font-size: 10px;
+}
+
+.finsight-probabilities strong { color: var(--fs-text); }
+
+.finsight-progress {
+    height: 8px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #f0d9cd;     /* soft warm track = decline share */
+}
+
+.finsight-progress div {
+    height: 100%;
+    background: linear-gradient(90deg, #22a55b, #16a34a);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+.finsight-section-title {
+    display: block;
+    margin: 14px 0 8px;
+    color: var(--fs-primary);
+}
+
+/* Metrics grid: 2 columns in the small window, more when maximized */
+
+.finsight-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+.finsight-metric {
+    min-width: 0;
+    padding: 9px 10px;
+    background: var(--fs-tint);
+    border: 1px solid transparent;
+    border-radius: 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.finsight-metric:hover {
+    border-color: var(--fs-tint-strong);
+    background: #f1e8f8;
+}
+
+.finsight-metric span {
+    color: var(--fs-muted);
+    font-size: 10px;
+    overflow-wrap: anywhere;
+}
+
+.finsight-metric strong {
+    font-size: 12px;
+    color: var(--fs-text);
+}
+
+.finsight-disclaimer {
+    margin: 11px 0 0;
+    color: #8f7fa0;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.finsight-note {
+    margin: 10px 0 0;
+    padding: 8px 10px;
+    color: var(--fs-muted);
+    background: var(--fs-tint);
+    border-left: 3px solid var(--fs-accent);
+    border-radius: 0 8px 8px 0;
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.finsight-warning {
+    margin: 8px 0;
+    padding: 9px 11px;
+    background: #fff7ed;
+    border: 1px solid #fdba74;
+    border-left: 4px solid #f97316;
+    color: #9a3412;
+    border-radius: 8px;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.finsight-section-heading {
+    margin: 16px 0 7px;
+    font-size: 13px;
+    color: var(--fs-primary);
+}
+
+/* ---------- Charts ---------- */
+
+.finsight-chart-card {
+    margin: 10px 0;
+    padding: 11px;
+    background: var(--fs-tint);
+    border: 1px solid var(--fs-border);
+    border-radius: 11px;
+}
+
+.finsight-chart-title {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: var(--fs-primary);
+}
+
+/* ---------- Maximized ---------- */
+
+.finsight-window.maximized {
+    position: fixed;
+    inset: 18px;
+    width: auto;
+    height: auto;
+    max-height: none;
+    margin: 0;
+    border-radius: 16px;
+    z-index: 10000;
+}
+
+.finsight-window.maximized .finsight-messages {
+    padding: 22px max(16px, 10%);
+}
+
+.finsight-window.maximized .finsight-bubble {
+    max-width: 70%;
+    font-size: 14px;
+}
+
+.finsight-window.maximized .finsight-chart-card > div {
+    height: 220px !important;
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 480px) {
+    .finsight-widget {
+        left: 12px;
+        bottom: 12px;
+    }
+
+    .finsight-window {
+        width: min(380px, calc(100vw - 24px));
+        height: min(570px, calc(100dvh - 95px));
+    }
+
+    .finsight-window.maximized {
+        inset: 8px;
+        width: auto;
+        height: auto;
+        max-height: none;
+        margin: 0;
+    }
+
+    .finsight-window.maximized .finsight-messages {
+        padding: 16px 12px;
+    }
+
+    .finsight-window.maximized .finsight-bubble {
+        max-width: 90%;
+    }
+}
+
+/* ---------- Accessibility ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .finsight-window,
+    .finsight-message,
+    .finsight-autocomplete,
+    .finsight-loading {
+        animation: none;
+    }
+    .finsight-launcher,
+    .finsight-suggestions button,
+    .finsight-input-area button {
+        transition: none;
+    }
+}
