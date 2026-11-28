@@ -10,6 +10,7 @@ import fundamental_analysis
 import marketdata
 import models
 import schemas
+import technical_analysis
 from database import Base, engine, get_db
 from security import create_token, get_current_user, hash_password, verify_password
 
@@ -236,3 +237,18 @@ def stock_fundamental_analysis(
     data = stock_financials(ticker, market, user, db)
     symbol = marketdata.normalize_ticker(ticker, market or "")
     return fundamental_analysis.run_fundamental_agent(data, symbol)
+
+
+# ---------- Module 4: Technical Analysis Agent ----------
+@app.get("/api/stocks/{ticker}/technical-analysis")
+def stock_technical_analysis(
+    ticker: str,
+    period: str = Query("6mo", pattern="^(6mo|1y|2y)$"),
+    market: schemas.Market | None = None,
+    user: models.User = Depends(get_current_user),
+):
+    symbol = marketdata.normalize_ticker(ticker, market or "")
+    result = technical_analysis.run_technical_agent(symbol, period)
+    if result.get("status") != "ok":
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, result.get("error", "Technical analysis failed."))
+    return result

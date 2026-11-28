@@ -20,6 +20,76 @@ function LineChart({ rows }) {
   );
 }
 
+// A flexible chart for the technical indicators: several lines, optional bars
+// (used for the MACD histogram) and optional dashed guide lines (like RSI 30 / 70).
+function IndicatorChart({ rows, lines, bars, guides, fixedRange, label }) {
+  const w = 600, h = 170, pad = 6;
+  const values = [];
+  lines.forEach((l) => rows.forEach((r) => { if (r[l.key] != null) values.push(r[l.key]); }));
+  if (bars) rows.forEach((r) => { if (r[bars.key] != null) values.push(r[bars.key]); });
+  if (guides) guides.forEach((g) => values.push(g.value));
+  const min = fixedRange ? fixedRange[0] : Math.min(...values);
+  const max = fixedRange ? fixedRange[1] : Math.max(...values);
+  const span = max - min || 1;
+  const xOf = (i) => pad + (i / Math.max(rows.length - 1, 1)) * (w - 2 * pad);
+  const yOf = (v) => h - pad - ((v - min) / span) * (h - 2 * pad);
+  const barWidth = Math.max(((w - 2 * pad) / Math.max(rows.length, 1)) * 0.7, 1);
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="chart" role="img" aria-label={label}>
+      {guides && guides.map((g) => (
+        <g key={g.label}>
+          <line
+            x1={pad} x2={w - pad} y1={yOf(g.value)} y2={yOf(g.value)}
+            stroke="#8c959f" strokeWidth="1" strokeDasharray="4 4"
+          />
+          <text x={w - pad - 2} y={yOf(g.value) - 3} fontSize="10" fill="#6e7781" textAnchor="end">
+            {g.label}
+          </text>
+        </g>
+      ))}
+      {bars && rows.map((r, i) => {
+        const v = r[bars.key];
+        if (v == null) return null;
+        const y0 = yOf(0), y1 = yOf(v);
+        return (
+          <rect
+            key={r.date}
+            x={xOf(i) - barWidth / 2}
+            y={Math.min(y0, y1)}
+            width={barWidth}
+            height={Math.abs(y1 - y0)}
+            fill={v >= 0 ? "#1a7f37" : "#cf222e"}
+            opacity="0.45"
+          />
+        );
+      })}
+      {lines.map((l) => {
+        const pts = rows
+          .map((r, i) => (r[l.key] == null ? null : `${xOf(i).toFixed(1)},${yOf(r[l.key]).toFixed(1)}`))
+          .filter(Boolean)
+          .join(" ");
+        return <polyline key={l.key} points={pts} fill="none" stroke={l.color} strokeWidth="2" />;
+      })}
+    </svg>
+  );
+}
+
+function Legend({ items }) {
+  return (
+    <p className="muted">
+      {items.map(([name, color]) => (
+        <span key={name} style={{ marginRight: 14 }}>
+          <span
+            style={{ display: "inline-block", width: 10, height: 10, background: color, marginRight: 4 }}
+          />
+          {name}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 // The rows of the peer comparison table: [key in the data, label shown on the page]
 const PEER_ROWS = [
   ["revenue_growth_percent", "Revenue growth (%)"],
@@ -31,6 +101,26 @@ const PEER_ROWS = [
   ["pb_ratio", "P/B ratio"],
 ];
 
+// The indicator table of the technical analysis: [key in the data, label shown on the page]
+const INDICATOR_ROWS = [
+  ["latest_close", "Latest close"],
+  ["sma20", "20-day SMA"],
+  ["sma50", "50-day SMA"],
+  ["ema20", "20-day EMA"],
+  ["rsi14", "RSI (14)"],
+  ["macd", "MACD line"],
+  ["macd_signal", "Signal line"],
+  ["macd_histogram", "MACD histogram"],
+];
+
+const SIGNAL_COLORS = {
+  bullish: "#1a7f37",
+  bearish: "#cf222e",
+  overbought: "#9a6700",
+  oversold: "#9a6700",
+  neutral: "#6e7781",
+};
+
 // Shows profile, price history (OHLCV), validation notes and the data source.
 export default function PricePanel({ ticker, period, market, onClose, onError, onResearch }) {
   const [history, setHistory] = useState(null);
@@ -38,6 +128,8 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
   const [financials, setFinancials] = useState(null);
   const [fundamental, setFundamental] = useState(null);
   const [fundamentalFailed, setFundamentalFailed] = useState(false);
+  const [technical, setTechnical] = useState(null);
+  const [technicalFailed, setTechnicalFailed] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -47,6 +139,8 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
     setFinancials(null);
     setFundamental(null);
     setFundamentalFailed(false);
+    setTechnical(null);
+    setTechnicalFailed(false);
     setError("");
     const q = `?period=${period}&market=${market}`;
     api(`/stocks/${encodeURIComponent(ticker)}/history${q}`)
@@ -65,6 +159,9 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
     api(`/stocks/${encodeURIComponent(ticker)}/fundamental-analysis`)
       .then((d) => !cancelled && setFundamental(d))
       .catch(() => !cancelled && setFundamentalFailed(true)); // optional; prices are the main result
+    api(`/stocks/${encodeURIComponent(ticker)}/technical-analysis?period=6mo&market=${market}`)
+      .then((d) => !cancelled && setTechnical(d))
+      .catch(() => !cancelled && setTechnicalFailed(true)); // optional; prices are the main result
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, period, market]);
@@ -76,6 +173,11 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
   const v = history && history.validation;
   const peers = fundamental && fundamental.peer_comparison;
   const peerNames = peers && peers.metrics ? Object.keys(peers.metrics) : [];
+
+  const chartRows = technical ? technical.chart_data : [];
+  const trend = technical && technical.price_trend;
+  const vol = technical && technical.volatility;
+  const cond = technical && technical.technical_conditions;
 
   return (
     <section className="card">
@@ -254,6 +356,147 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
           <p className="muted">
             Source: {fundamental.source && fundamental.source.name}. These are calculated
             numbers, not investment advice.
+          </p>
+        </>
+      )}
+
+      {!technical && !technicalFailed && history && (
+        <p className="muted">Calculating technical analysis (this can take a few seconds)...</p>
+      )}
+      {technicalFailed && (
+        <p className="muted">Technical analysis could not be loaded for this stock.</p>
+      )}
+
+      {technical && (
+        <>
+          <h4>Technical analysis</h4>
+          <p>
+            Overall signal:{" "}
+            <strong>{cond ? cond.overall_signal : "Not available"}</strong>
+            {cond && (
+              <span className="muted">
+                {" "}({cond.bullish_count} bullish, {cond.bearish_count} bearish out of 3 trend rules)
+              </span>
+            )}
+          </p>
+
+          <h5>Indicators (latest day)</h5>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Indicator</th><th>Value</th></tr>
+              </thead>
+              <tbody>
+                {INDICATOR_ROWS.map(([key, label]) => (
+                  <tr key={key}>
+                    <td>{label}</td>
+                    <td>{technical.indicators[key]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {trend && trend.trend !== "Not enough data" && (
+            <>
+              <h5>Price trend: {trend.trend}</h5>
+              <ul>
+                <li>Change over the last month: {trend.change_1m_pct}%</li>
+                <li>Change over the last 3 months: {trend.change_3m_pct}%</li>
+                <li>Change over the whole {technical.period} period: {trend.change_period_pct}%</li>
+              </ul>
+            </>
+          )}
+
+          {vol && vol.volatility_label !== "Not enough data" && (
+            <>
+              <h5>Historical volatility: {vol.volatility_label}</h5>
+              <p className="muted">
+                Last 30 trading days: {vol.volatility_30d_pct}% a year · Whole period:{" "}
+                {vol.volatility_period_pct}% a year
+              </p>
+            </>
+          )}
+
+          {cond && (
+            <>
+              <h5>Technical conditions</h5>
+              <ul>
+                {cond.conditions.map((c) => (
+                  <li key={c.name}>
+                    <strong>{c.name}:</strong>{" "}
+                    <span style={{ color: SIGNAL_COLORS[c.signal] || "#6e7781", fontWeight: 600 }}>
+                      {c.signal}
+                    </span>
+                    . {c.explanation}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {chartRows.length > 0 && (
+            <>
+              <h5>Price with moving averages</h5>
+              <IndicatorChart
+                rows={chartRows}
+                label="Closing price with SMA 20, SMA 50 and EMA 20"
+                lines={[
+                  { key: "close", color: "#1f6feb" },
+                  { key: "sma20", color: "#e36209" },
+                  { key: "sma50", color: "#8250df" },
+                  { key: "ema20", color: "#1a7f37" },
+                ]}
+              />
+              <Legend
+                items={[
+                  ["Close", "#1f6feb"],
+                  ["SMA 20", "#e36209"],
+                  ["SMA 50", "#8250df"],
+                  ["EMA 20", "#1a7f37"],
+                ]}
+              />
+
+              <h5>RSI (14)</h5>
+              <IndicatorChart
+                rows={chartRows}
+                label="Relative Strength Index"
+                fixedRange={[0, 100]}
+                lines={[{ key: "rsi14", color: "#8250df" }]}
+                guides={[
+                  { value: 70, label: "70 overbought" },
+                  { value: 30, label: "30 oversold" },
+                ]}
+              />
+
+              <h5>MACD</h5>
+              <IndicatorChart
+                rows={chartRows}
+                label="MACD, signal line and histogram"
+                lines={[
+                  { key: "macd", color: "#1f6feb" },
+                  { key: "signal", color: "#e36209" },
+                ]}
+                bars={{ key: "histogram" }}
+                guides={[{ value: 0, label: "0" }]}
+              />
+              <Legend
+                items={[
+                  ["MACD line", "#1f6feb"],
+                  ["Signal line", "#e36209"],
+                  ["Histogram", "#1a7f37"],
+                ]}
+              />
+              <p className="muted">
+                Charts show {chartRows[0].date} to {chartRows[chartRows.length - 1].date}. Lines start
+                later where an indicator needs more days of prices first.
+              </p>
+            </>
+          )}
+
+          <p className="muted">
+            Source: {technical.source}, retrieved {new Date(technical.retrieved_at).toLocaleString()}.{" "}
+            {technical.disclaimer}
           </p>
         </>
       )}
