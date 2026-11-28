@@ -1,0 +1,8 @@
+Ticker,Company_Name,Peer_Rationale,Currency,FY_Period,Revenue_Cr,Revenue_Growth_%,Net_Income_Cr,Net_Income_Growth_%,Gross_Profit_Margin_%,Operating_Margin_%,Net_Profit_Margin_%,EBITDA_Margin_%,ROE_%,Debt_to_Equity,Debt_to_Assets,Current_Ratio,EPS,PE_Ratio,PB_Ratio,Data_Notes
+RELIANCE.NS,Reliance Industries Limited,Primary company (diversified conglomerate),INR,2026-03-31,1057219.0,9.5912,80775.0,15.9761,25.58,11.48,7.64,19.38,8.93,0.4403,0.1827,1.0979,59.69,22.6417,1.9686,OK
+ONGC.NS,Oil and Natural Gas Corporation Limited,O&G segment comparable (upstream),INR,2026-03-31,605276.46,-0.6037,41424.38,14.3511,24.31,13.52,6.84,19.1,11.14,0.4688,0.2201,0.8405,32.93,5.6445,0.6972,OK
+IOC.NS,Indian Oil Corporation Limited,O&G + refining segment comparable (downstream),INR,2026-03-31,773992.8,2.5743,42096.26,209.5805,14.04,8.82,5.44,10.81,19.18,0.6005,0.2492,0.7425,30.57,4.3087,0.8728,OK
+BPCL.NS,Bharat Petroleum Corporation Limited,Refining + fuel retail comparable,INR,2026-03-31,450302.67,2.6359,25843.45,93.7791,12.43,8.34,5.74,10.13,25.8,0.5433,0.2189,0.7939,60.49,8.3816,1.3054,OK
+TCS.NS,Tata Consultancy Services Limited,Large-cap benchmark (size comparison only),INR,2026-03-31,267021.0,4.5812,49210.0,1.3532,45.1,25.1,18.43,27.07,45.89,0.1052,0.0619,2.2278,136.01,17.2441,7.6545,OK
+HINDUNILVR.NS,Hindustan Unilever Limited,Consumer/retail segment proxy,INR,2026-03-31,63763.0,5.2664,15040.0,41.2339,48.5,21.52,23.59,24.56,30.86,0.0303,0.0185,1.2233,64.0,47.5533,10.3097,OK
+BHARTIARTL.NS,Bharti Airtel Limited,Telecom segment proxy (vs Jio),INR,2026-03-31,210972.8,21.96,26695.2,-20.4461,69.59,32.15,12.65,54.85,17.91,1.311,0.3539,0.517,44.37,41.6913,8.3552,OK

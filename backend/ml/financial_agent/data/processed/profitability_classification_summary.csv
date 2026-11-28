@@ -1,0 +1,21 @@
+Item,Value
+Company Ticker,RELIANCE.NS
+Primary Evaluation Metric,Net Profit Margin (%)
+Latest Evaluated Financial Year,2026-03-31
+Latest Net Profit Margin (%),7.64%
+Overall Profitability Class,Moderately Profitable
+Classification Rationale,Net Profit Margin (7.64%) between 5.0% and 15.0%
+Multi-Year Margin Trend,Mixed
+Gross Profit Margin (%),25.58%
+Operating Profit Margin (%),11.48%
+EBITDA Margin (%),19.38%
+Revenue Growth YoY (%),9.59%
+Net Income Growth YoY (%),15.98%
+Return on Equity ROE (%),8.94%
+Data Quality Status,Reliable: No critical data quality issues affect the latest evaluated period
+Data Quality Warning for Latest Period,None
+Configured Threshold - Highly Profitable,>= 15.0%
+Configured Threshold - Moderately Profitable,>= 5.0% and < 15.0%
+Configured Threshold - Low Profitable,> 0.0% and < 5.0%
+Configured Threshold - Not Profitable,<= 0.0%
+Rule Disclaimer,"NOTE: These classification thresholds are analytical heuristics defined for the StockIntel Financial Agent. They are NOT official accounting standards, statutory definitions, or investment advice."

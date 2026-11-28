@@ -471,7 +471,13 @@ function Dashboard() {
 
               <div className="db-agents">
                 {AI_AGENTS.map((a) => (
-                  <div className="db-agent-row" key={a.label}>
+                  <div
+                    className="db-agent-row"
+                    key={a.label}
+                    onClick={() => a.label === "Fundamental" && navigate("/dashboard/fundamentals")}
+                    style={a.label === "Fundamental" ? { cursor: "pointer" } : {}}
+                    title={a.label === "Fundamental" ? "Open Fundamental Agent" : ""}
+                  >
                     <div className="db-agent-icon">{a.icon}</div>
                     <div className="db-agent-info">
                       <strong style={{ color: a.color }}>{a.label} Agent</strong>
@@ -488,10 +494,11 @@ function Dashboard() {
               <p className="db-eyebrow">QUICK ACCESS</p>
               <h2>Navigate</h2>
               {[
-                { icon: "☆", label: "Watchlist",   path: "/dashboard/watchlist",  desc: "Monitor saved stocks" },
-                { icon: "▤", label: "Research",    path: "/dashboard/research",   desc: "Advanced research terminal" },
-                { icon: "◷", label: "History",     path: "/dashboard/history",    desc: "Full research archive" },
-                { icon: "⚙", label: "Preferences", path: "/dashboard/preferences",desc: "Customise your workspace" },
+                { icon: "☆", label: "Watchlist",    path: "/dashboard/watchlist",    desc: "Monitor saved stocks" },
+                { icon: "▤", label: "Research",     path: "/dashboard/research",     desc: "Advanced research terminal" },
+                { icon: "◈", label: "Fundamentals", path: "/dashboard/fundamentals", desc: "Fundamental Agent analysis" },
+                { icon: "◷", label: "History",      path: "/dashboard/history",      desc: "Full research archive" },
+                { icon: "⚙", label: "Preferences",  path: "/dashboard/preferences",  desc: "Customise your workspace" },
               ].map((l) => (
                 <button
                   key={l.label}

@@ -121,4 +121,13 @@ export const getFinancialStatement = async (
   return response.data;
 };
 
+// Execute Fundamental Agent analysis across all 8 core features
+export const analyzeFundamentals = async (ticker, market = "NSE") => {
+  const response = await API.post("/api/fundamental/analyze", {
+    ticker: ticker.trim().toUpperCase(),
+    market: market.trim().toUpperCase(),
+  });
+  return response.data;
+};
+
 export default API;

@@ -11,6 +11,7 @@ import Watchlist from "./pages/Watchlist";
 import Markets from "./pages/Markets";
 import Settings from "./pages/Settings";
 import Preferences from "./pages/Preferences";
+import Fundamentals from "./pages/Fundamentals";
 
 import "./App.css";
 
@@ -23,6 +24,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/research" element={<Research />} />
+        <Route path="/dashboard/fundamentals" element={<Fundamentals />} />
         <Route path="/dashboard/history" element={<History />} />
         <Route path="/dashboard/watchlist" element={<Watchlist />} />
         <Route path="/dashboard/markets" element={<Markets />} />

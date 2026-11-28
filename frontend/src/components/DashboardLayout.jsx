@@ -7,6 +7,7 @@ function DashboardLayout({ user, onLogout, children }) {
     { name: "Watchlist", path: "/dashboard/watchlist", icon: "☆" },
     { name: "Markets", path: "/dashboard/markets", icon: "▥" },
     { name: "Research", path: "/dashboard/research", icon: "▤" },
+    { name: "Fundamentals", path: "/dashboard/fundamentals", icon: "◈" },
     { name: "History", path: "/dashboard/history", icon: "◷" },
   ];
 

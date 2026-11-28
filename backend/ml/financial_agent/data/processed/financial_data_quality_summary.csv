@@ -1,0 +1,14 @@
+Dimension,Metric,Value
+Total Issues Detected,Count,4
+Severity,CRITICAL,1
+Severity,WARNING,1
+Severity,INFO,2
+Category,Missing Data,3
+Category,Invalid Calculation,1
+Coverage,Annual Income Statement,78.4% (196/250 cells)
+Coverage,Annual Balance Sheet,100.0% (308/308 cells)
+Coverage,Revenue & Earnings Analysis,71.43% (25/35 cells)
+Coverage,Profitability Analysis,81.25% (65/80 cells)
+Coverage,Debt & Stability Analysis,100.0% (52/52 cells)
+Coverage,Financial Ratios Analysis,60.0% (33/55 cells)
+Coverage,Peer Comparison Metrics,100.0% (259/259 cells)

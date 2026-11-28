@@ -1,0 +1,9 @@
+Metric,Unit,First_Year,First_Value,Last_Year,Last_Value,Years_With_Data,Absolute_Change,Percentage_Change_%,Overall_Trend
+Revenue_Cr,INR Cr,2023-03-31,877835.0,2026-03-31,1057219.0,4,179384.0,20.4348,Improving
+Net_Income_Cr,INR Cr,2023-03-31,66702.0,2026-03-31,80775.0,4,14073.0,21.0983,Improving
+Gross_Profit_Margin_%,%,2023-03-31,23.4596,2026-03-31,25.5761,4,2.12,9.0219,Mixed (mostly improving)
+Operating_Margin_%,%,2023-03-31,11.6212,2026-03-31,11.4808,4,-0.14,-1.2081,Mixed (mostly declining)
+Net_Profit_Margin_%,%,2023-03-31,7.5985,2026-03-31,7.6403,4,0.04,0.5501,Mixed (mostly improving)
+EBITDA_Margin_%,%,2023-03-31,17.4642,2026-03-31,19.3816,4,1.92,10.979,Mixed (mostly improving)
+EPS,INR,2023-03-31,49.295,2026-03-31,59.6898,4,10.39,21.0869,Improving
+ROE_%,%,2023-03-31,9.3176,2026-03-31,8.935,4,-0.38,-4.1062,Mixed (mostly declining)
