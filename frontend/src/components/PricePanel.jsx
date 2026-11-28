@@ -20,16 +20,33 @@ function LineChart({ rows }) {
   );
 }
 
+// The rows of the peer comparison table: [key in the data, label shown on the page]
+const PEER_ROWS = [
+  ["revenue_growth_percent", "Revenue growth (%)"],
+  ["operating_margin_percent", "Operating margin (%)"],
+  ["net_margin_percent", "Net margin (%)"],
+  ["roe_percent", "Return on equity (%)"],
+  ["debt_to_equity", "Debt-to-equity"],
+  ["pe_ratio", "P/E ratio"],
+  ["pb_ratio", "P/B ratio"],
+];
+
 // Shows profile, price history (OHLCV), validation notes and the data source.
 export default function PricePanel({ ticker, period, market, onClose, onError, onResearch }) {
   const [history, setHistory] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [financials, setFinancials] = useState(null);
+  const [fundamental, setFundamental] = useState(null);
+  const [fundamentalFailed, setFundamentalFailed] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setHistory(null);
     setProfile(null);
+    setFinancials(null);
+    setFundamental(null);
+    setFundamentalFailed(false);
     setError("");
     const q = `?period=${period}&market=${market}`;
     api(`/stocks/${encodeURIComponent(ticker)}/history${q}`)
@@ -42,6 +59,12 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
     api(`/stocks/${encodeURIComponent(ticker)}/profile?market=${market}`)
       .then((d) => !cancelled && setProfile(d))
       .catch(() => {}); // the profile is optional; prices are the main result
+    api(`/stocks/${encodeURIComponent(ticker)}/financials`)
+      .then((d) => !cancelled && setFinancials(d))
+      .catch(() => {}); // financials are optional; prices are the main result
+    api(`/stocks/${encodeURIComponent(ticker)}/fundamental-analysis`)
+      .then((d) => !cancelled && setFundamental(d))
+      .catch(() => !cancelled && setFundamentalFailed(true)); // optional; prices are the main result
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, period, market]);
@@ -51,6 +74,8 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
   const first = rows[0];
   const change = last && first ? ((last.close - first.close) / first.close) * 100 : null;
   const v = history && history.validation;
+  const peers = fundamental && fundamental.peer_comparison;
+  const peerNames = peers && peers.metrics ? Object.keys(peers.metrics) : [];
 
   return (
     <section className="card">
@@ -112,6 +137,123 @@ export default function PricePanel({ ticker, period, market, onClose, onError, o
           <p className="muted">
             Source: <a href={history.source.url} target="_blank" rel="noreferrer">{history.source.name}</a>,
             retrieved {new Date(history.source.retrieved_at).toLocaleString()}.
+          </p>
+        </>
+      )}
+
+      {financials && (
+        <>
+          <h4>Financial statements (annual)</h4>
+          {Object.entries(financials.statements).map(([name, items]) => {
+            const years = [...new Set(Object.values(items).flatMap((o) => Object.keys(o)))].sort().reverse();
+            if (years.length === 0) return null;
+            return (
+              <div key={name}>
+                <h5>{name.replace("_", " ")}</h5>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr><th>Item</th>{years.map((y) => <th key={y}>{y}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(items).map(([item, byYear]) => (
+                        <tr key={item}>
+                          <td>{item}</td>
+                          {years.map((y) => (
+                            <td key={y}>
+                              {byYear[y] == null ? "-" : byYear[y].toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+          <p className="muted">
+            Source: <a href={financials.source.url} target="_blank" rel="noreferrer">{financials.source.name}</a>
+            {financials.from_cache ? " (served from cache)" : ""}.
+          </p>
+        </>
+      )}
+
+      {!fundamental && !fundamentalFailed && history && (
+        <p className="muted">Calculating fundamental analysis (this can take a few seconds)...</p>
+      )}
+      {fundamentalFailed && (
+        <p className="muted">Fundamental analysis could not be loaded for this stock.</p>
+      )}
+
+      {fundamental && (
+        <>
+          <h4>Fundamental analysis</h4>
+
+          {fundamental.historical_comparison && (
+            <>
+              <h5>Trend: oldest year compared with latest year</h5>
+              <ul>
+                {fundamental.historical_comparison.summary.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {fundamental.valuation_analysis && (
+            <>
+              <h5>Valuation</h5>
+              <p className="muted">
+                P/E ratio: {fundamental.valuation_analysis.pe_ratio} · P/B ratio:{" "}
+                {fundamental.valuation_analysis.pb_ratio}
+              </p>
+            </>
+          )}
+
+          {peerNames.length > 0 && (
+            <>
+              <h5>Peer comparison (latest financial year)</h5>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Measure</th>{peerNames.map((n) => <th key={n}>{n}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {PEER_ROWS.map(([key, label]) => (
+                      <tr key={key}>
+                        <td>{label}</td>
+                        {peerNames.map((n) => (
+                          <td key={n}>{peers.metrics[n][key]}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <ul>
+                {peers.versus_peer_average.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              <p className="muted">{peers.note}</p>
+            </>
+          )}
+          {peers && peerNames.length === 0 && peers.note && (
+            <p className="muted">{peers.note}</p>
+          )}
+
+          <h5>Data quality: {fundamental.data_quality_status}</h5>
+          {fundamental.data_issues.length > 0 && (
+            <ul>
+              {fundamental.data_issues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          )}
+          <p className="muted">
+            Source: {fundamental.source && fundamental.source.name}. These are calculated
+            numbers, not investment advice.
           </p>
         </>
       )}

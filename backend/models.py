@@ -89,3 +89,35 @@ class ResearchReport(Base):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     limitations: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+from sqlalchemy import BigInteger, Date, Float
+
+
+class StaticCompany(Base):
+    """Company profile from the Kaggle NIFTY-50 dataset (static data)."""
+    __tablename__ = "static_companies"
+
+    company_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    company_name: Mapped[str] = mapped_column(String(200))
+    industry: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    isin: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+
+class StaticPrice(Base):
+    """Cleaned daily prices (OHLCV) from the Kaggle NIFTY-50 dataset (static data)."""
+    __tablename__ = "static_prices"
+    __table_args__ = (UniqueConstraint("symbol", "trade_date", name="uq_static_symbol_date"),)
+
+    price_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(20), index=True)
+    trade_date: Mapped[datetime] = mapped_column(Date, index=True)
+    open: Mapped[float] = mapped_column(Float)
+    high: Mapped[float] = mapped_column(Float)
+    low: Mapped[float] = mapped_column(Float)
+    close: Mapped[float] = mapped_column(Float)
+    volume: Mapped[int] = mapped_column(BigInteger)
+    source: Mapped[str] = mapped_column(String(200))
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    

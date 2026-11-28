@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import fundamental_analysis
 import marketdata
 import models
 import schemas
@@ -197,3 +198,41 @@ def stock_profile(
         return marketdata.get_profile(symbol)
     except marketdata.MarketDataError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc))
+
+
+@app.get("/api/stocks/{ticker}/financials")
+def stock_financials(
+    ticker: str,
+    market: schemas.Market | None = None,
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    symbol = marketdata.normalize_ticker(ticker, market or "")
+    try:
+        data = marketdata.get_financials(symbol)
+    except marketdata.MarketDataError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc))
+
+    if not data["from_cache"]:
+        # Record where the data came from and when it was retrieved.
+        db.add(models.SourceDocument(
+            source_type="financial_statements",
+            title=f"Financial statements: {symbol}",
+            source_url=data["source"]["url"],
+            content_hash=marketdata.content_hash(data),
+        ))
+        db.commit()
+    return data
+
+
+# ---------- Module 3: Fundamental Analysis Agent ----------
+@app.get("/api/stocks/{ticker}/fundamental-analysis")
+def stock_fundamental_analysis(
+    ticker: str,
+    market: schemas.Market | None = None,
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    data = stock_financials(ticker, market, user, db)
+    symbol = marketdata.normalize_ticker(ticker, market or "")
+    return fundamental_analysis.run_fundamental_agent(data, symbol)

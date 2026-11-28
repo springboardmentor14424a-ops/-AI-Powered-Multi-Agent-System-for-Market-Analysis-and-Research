@@ -169,7 +169,7 @@ def get_history(ticker: str, period: str) -> dict:
 
 
 def content_hash(data: dict) -> str:
-    return hashlib.sha256(json.dumps(data["rows"], sort_keys=True).encode()).hexdigest()
+    return hashlib.sha256(json.dumps(data.get("rows", data.get("statements")), sort_keys=True).encode()).hexdigest()
 
 
 def get_profile(ticker: str) -> dict:
@@ -191,3 +191,59 @@ def get_profile(ticker: str) -> dict:
 
     data, _ = _cached(("profile", ticker), load)
     return data
+
+
+# ---------- Financial statements ----------
+FINANCIAL_ITEMS = {
+    "income_statement": ["Total Revenue", "Gross Profit", "Operating Income", "EBITDA", "Net Income", "Basic EPS"],
+    "balance_sheet": ["Total Assets", "Total Liabilities Net Minority Interest", "Total Debt",
+                      "Stockholders Equity", "Cash And Cash Equivalents"],
+    "cash_flow": ["Operating Cash Flow", "Capital Expenditure", "Free Cash Flow"],
+}
+
+
+def _pick_rows(df, wanted: list[str]) -> dict:
+    """Keep only the important lines, as {line name: {year-end date: value}}."""
+    if df is None or df.empty:
+        return {}
+    out = {}
+    for item in wanted:
+        if item in df.index:
+            out[item] = {
+                pd.Timestamp(col).strftime("%Y-%m-%d"): (None if pd.isna(v) else float(v))
+                for col, v in df.loc[item].items()
+            }
+    return out
+
+
+def get_financials(ticker: str) -> dict:
+    def load():
+        t = yf.Ticker(ticker)
+        raw = {
+            "income_statement": _retry(lambda: t.income_stmt),
+            "balance_sheet": _retry(lambda: t.balance_sheet),
+            "cash_flow": _retry(lambda: t.cashflow),
+        }
+        statements = {name: _pick_rows(raw[name], FINANCIAL_ITEMS[name]) for name in raw}
+        if not any(statements.values()):
+            raise MarketDataError("No financial statements are available for this ticker.")
+
+        missing = [
+            f"{name}: {item} not available"
+            for name, items in FINANCIAL_ITEMS.items()
+            for item in items
+            if item not in statements[name]
+        ]
+        return {
+            "ticker": ticker,
+            "statements": statements,
+            "missing_items": missing,
+            "source": {
+                "name": SOURCE_NAME,
+                "url": f"https://finance.yahoo.com/quote/{ticker}/financials",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
+
+    data, from_cache = _cached(("financials", ticker), load)
+    return {**data, "from_cache": from_cache}
